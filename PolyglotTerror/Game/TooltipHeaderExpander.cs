@@ -87,6 +87,8 @@ public sealed unsafe class TooltipHeaderExpander
             node->AtkResNode.SetYFloat(node->AtkResNode.Y + topOffset);
         }
 
+        RecordApplied();
+
         if (log)
         {
             var parent = node->AtkResNode.ParentNode;
@@ -106,23 +108,44 @@ public sealed unsafe class TooltipHeaderExpander
     /// </summary>
     public void Forget() => touched.Clear();
 
+    /// <summary>
+    /// Undoes only the nodes still holding the values we gave them. The game relays out parts of the
+    /// tooltip per item - the description block resizes with its text - and putting our remembered
+    /// values back over a fresh layout would corrupt it.
+    /// </summary>
     private void RestoreTouched()
     {
         foreach (var (key, state) in touched)
         {
             var node = (AtkResNode*)key;
-            node->SetHeight(state.Height);
-            node->SetYFloat(state.Y);
+            if (node->Height != state.AppliedHeight || Math.Abs(node->Y - state.AppliedY) > 0.5f)
+                continue;
+
+            node->SetHeight(state.PristineHeight);
+            node->SetYFloat(state.PristineY);
         }
 
         touched.Clear();
+    }
+
+    /// <summary>
+    /// Records what we ended up leaving on each node, so the next pass can tell our own changes
+    /// apart from a fresh layout by the game.
+    /// </summary>
+    private void RecordApplied()
+    {
+        foreach (var key in new List<nint>(touched.Keys))
+        {
+            var node = (AtkResNode*)key;
+            touched[key] = touched[key] with { AppliedHeight = node->Height, AppliedY = node->Y };
+        }
     }
 
     private void Capture(AtkResNode* node)
     {
         var key = (nint)node;
         if (!touched.ContainsKey(key))
-            touched[key] = new NodeState(node->Height, node->Y);
+            touched[key] = new NodeState(node->Height, node->Y, node->Height, node->Y);
     }
 
     private void GrowAncestors(AtkResNode* node, int delta)
@@ -255,5 +278,5 @@ public sealed unsafe class TooltipHeaderExpander
         return lines;
     }
 
-    private readonly record struct NodeState(ushort Height, float Y);
+    private readonly record struct NodeState(ushort PristineHeight, float PristineY, ushort AppliedHeight, float AppliedY);
 }
