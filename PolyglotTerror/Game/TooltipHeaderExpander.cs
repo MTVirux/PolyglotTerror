@@ -61,7 +61,9 @@ public sealed unsafe class TooltipHeaderExpander
         {
             Plugin.Log.Information(
                 $"Header expand: pristine={pristine} height={height} lineSpacing={lineSpacing} " +
-                $"lines={lines} drawn={drawWidth}x{drawHeight} padding={padding} target={target} delta={delta}");
+                $"lines={lines} drawn={drawWidth}x{drawHeight} padding={padding} " +
+                $"space={config.TooltipNameExtraSpace} topOffset={topOffset} known={known} " +
+                $"target={target} delta={delta}");
         }
 
         if (delta <= 0)
@@ -86,22 +88,24 @@ public sealed unsafe class TooltipHeaderExpander
         {
             var parent = current->ParentNode;
             var top = current->Y;
-            var bottom = top + current->Height;
             current->SetHeight((ushort)(current->Height + delta));
 
             if (parent != null)
-                AdjustSiblings(parent, current, top, bottom, delta);
+                AdjustSiblings(parent, current, top, delta);
 
             current = parent;
         }
     }
 
     /// <summary>
-    /// A sibling that spans the grown node is a frame, background or collision box and has to grow
-    /// with it; one that sits below it is content and has to move down.
+    /// A sibling below the grown node is content and moves down. A sibling covering the parent from
+    /// top to bottom is a frame, background or collision box and grows instead. Anything else is left
+    /// alone - the item icon sits beside the name and spans it, but stretching it would distort it.
     /// </summary>
-    private static void AdjustSiblings(AtkResNode* parent, AtkResNode* grown, float top, float bottom, int delta)
+    private static void AdjustSiblings(AtkResNode* parent, AtkResNode* grown, float top, int delta)
     {
+        var parentHeight = parent->Height;
+
         for (var child = parent->ChildNode; child != null; child = child->PrevSiblingNode)
         {
             if (child == grown)
@@ -113,7 +117,7 @@ public sealed unsafe class TooltipHeaderExpander
                 continue;
             }
 
-            if (child->Y + child->Height >= bottom)
+            if (child->Y <= 0 && child->Y + child->Height >= parentHeight)
                 child->SetHeight((ushort)(child->Height + delta));
         }
     }
