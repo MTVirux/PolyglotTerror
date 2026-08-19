@@ -267,12 +267,16 @@ public sealed unsafe class CastBarDecorator : IDisposable
     }
 
     /// <summary>
-    /// Lifts the text by <see cref="LineLift"/> for each line shown, since the node grows downwards,
-    /// then applies the configured offset. Both move from the game's own position, so the offset
-    /// stays absolute instead of piling up frame after frame.
+    /// Lifts the text by <see cref="LineLift"/> for each line shown, since the node grows downwards.
+    /// A single line still sits where the game put it, so only the configured offset moves it. Both
+    /// move from the game's own position, so the offset stays absolute instead of piling up frame
+    /// after frame.
     /// </summary>
-    private void OffsetText(AtkTextNode* node, float anchor, int lines) =>
-        node->AtkResNode.SetYFloat(anchor + (lines * LineLift) + config.CastBarTextOffset);
+    private void OffsetText(AtkTextNode* node, float anchor, int lines)
+    {
+        var lift = lines > 1 ? lines * LineLift : 0f;
+        node->AtkResNode.SetYFloat(anchor + lift + config.CastBarTextOffset);
+    }
 
     /// <summary>
     /// Records how the game had a node the first time we touch it, so we can put it back later.
