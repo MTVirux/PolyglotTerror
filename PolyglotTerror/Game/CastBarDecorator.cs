@@ -16,6 +16,8 @@ public sealed unsafe class CastBarDecorator : IDisposable
     public const string OverheadAddonName = "CastBarEnemy";
     public const string PartyListAddonName = "_PartyList";
 
+    private const float LineLift = -8f;
+
     private readonly Configuration config;
     private readonly NameCatalog names;
     private readonly NodeTextWriter writer = new();
@@ -205,30 +207,31 @@ public sealed unsafe class CastBarDecorator : IDisposable
             return;
 
         Write(node, composed);
-        if (composed.Contains(LineComposer.Separator, StringComparison.Ordinal))
+        var lines = composed.AsSpan().Count(LineComposer.Separator) + 1;
+        if (lines > 1)
         {
             node->TextFlags |= TextFlags.MultiLine | TextFlags.WordWrap;
-            FitLines(node, composed);
+            FitLines(node, lines);
         }
 
-        OffsetText(node);
+        OffsetText(node, lines);
     }
 
     /// <summary>
     /// Grows the node to fit every line, since the game sizes it for the single line it expects.
     /// </summary>
-    private static void FitLines(AtkTextNode* node, string composed)
+    private static void FitLines(AtkTextNode* node, int lines)
     {
-        var lines = composed.AsSpan().Count(LineComposer.Separator) + 1;
         var spacing = node->LineSpacing > 0 ? node->LineSpacing : node->FontSize + 4;
         node->AtkResNode.SetHeight((ushort)(lines * spacing));
     }
 
     /// <summary>
-    /// Moves the text by the configured offset. The first position we see is kept as the anchor,
-    /// so the offset stays absolute instead of piling up frame after frame.
+    /// Lifts the text by <see cref="LineLift"/> for each line shown, since the node grows downwards,
+    /// then applies the configured offset. The first position we see is kept as the anchor, so the
+    /// offset stays absolute instead of piling up frame after frame.
     /// </summary>
-    private void OffsetText(AtkTextNode* node)
+    private void OffsetText(AtkTextNode* node, int lines)
     {
         var key = (nint)node;
         if (!baseTextY.TryGetValue(key, out var anchor))
@@ -237,7 +240,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             baseTextY[key] = anchor;
         }
 
-        node->AtkResNode.SetYFloat(anchor + config.CastBarTextOffset);
+        node->AtkResNode.SetYFloat(anchor + (lines * LineLift) + config.CastBarTextOffset);
     }
 
     private static IBattleChara? ResolveCaster(CastSource source) => source switch
