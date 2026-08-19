@@ -5,7 +5,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// Makes room for extra name lines in a tooltip header.
+/// WORK IN PROGRESS - not wired up. Makes room for extra name lines in a tooltip header.
 /// </summary>
 /// <remarks>
 /// The game measures a tooltip's description block from its text but gives the name a fixed

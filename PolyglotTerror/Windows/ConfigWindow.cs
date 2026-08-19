@@ -73,7 +73,10 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawTooltips()
     {
-        Heading("Tooltips");
+        Heading("Tooltips (work in progress)");
+
+        ImGui.TextDisabled("Tooltip translation is unfinished and currently does nothing in game.");
+        ImGui.BeginDisabled();
 
         Option("Item name", configuration.ShowItemName, value => configuration.ShowItemName = value);
         Option("Item category", configuration.ShowItemCategory, value => configuration.ShowItemCategory = value);
@@ -82,14 +85,17 @@ public sealed class ConfigWindow : Window, IDisposable
         Option("Action description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
 
         ImGui.TextDisabled("Descriptions in four languages make for a very tall tooltip.");
+        ImGui.EndDisabled();
     }
 
     private void DrawSurfaces()
     {
         Heading("Where to show translations");
 
-        Option("Item tooltips", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
-        Option("Action tooltips", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
+        ImGui.BeginDisabled();
+        Option("Item tooltips (work in progress)", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
+        Option("Action tooltips (work in progress)", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
+        ImGui.EndDisabled();
         Option("Your own cast bar", configuration.DecorateOwnCastBar, value => configuration.DecorateOwnCastBar = value);
         Option("Target and focus target cast bars", configuration.DecorateTargetBars, value => configuration.DecorateTargetBars = value);
         Option("Cast bars over enemies", configuration.DecorateOverheadBars, value => configuration.DecorateOverheadBars = value);

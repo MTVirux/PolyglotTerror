@@ -24,15 +24,18 @@ All names are read from the game client's own Excel data through Lumina, so they
 
 ## What it covers
 
-- Item tooltips, everywhere the game shows them
-- Action tooltips: combat actions and traits, crafting and gathering actions, general and main
-  commands, chocobo actions, mounts, minions and fashion accessories
 - Your own cast bar
 - The target and focus target cast bars
 - Cast bars over enemies
 - The party list
 
 The party list shows the primary language only. Everything else shows the full stack of enabled languages, in the order you set in the settings window.
+
+## Not finished yet
+
+Item and action tooltips are work in progress and currently do nothing. The game gives a tooltip's
+name a fixed two-line region, so extra lines render over the row beneath it, and making room means
+relaying out the addon. Their settings are still listed but greyed out.
 
 ## Languages
 

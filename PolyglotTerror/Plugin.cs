@@ -28,8 +28,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AddonInspector inspector = new();
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
-    private readonly ItemTooltipDecorator? tooltips;
-    private readonly ActionTooltipDecorator? actionTooltips;
 
     public Plugin()
     {
@@ -42,11 +40,9 @@ public sealed class Plugin : IDalamudPlugin
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        if (Configuration.DecorateTooltip)
-            tooltips = new ItemTooltipDecorator(Configuration, Names, inspector);
-
-        if (Configuration.DecorateActionTooltip)
-            actionTooltips = new ActionTooltipDecorator(Configuration, Names);
+        // Tooltip decoration is work in progress and deliberately not wired up. The game gives a
+        // tooltip's name a fixed two-line region, so extra lines render over the row beneath it and
+        // making room means relaying out the addon. Its settings stay visible but inert.
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -69,8 +65,6 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
         castBars.Dispose();
-        tooltips?.Dispose();
-        actionTooltips?.Dispose();
     }
 
     private void RegisterCastBars()
@@ -105,8 +99,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (parts.Length == 2 && parts[0] == "dump" && parts[1] == "item")
         {
-            tooltips?.ArmDump();
-            Log.Information("Hover an item to dump its tooltip.");
+            Log.Information("Tooltip decoration is work in progress and switched off, so there is nothing to dump.");
             return;
         }
 

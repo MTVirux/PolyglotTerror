@@ -8,6 +8,7 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
+/// WORK IN PROGRESS - not wired up. See Plugin for why.
 /// Appends extra language lines to the item tooltip's backing string array before the game lays
 /// the window out. The description block is measured from its text and grows on its own; the name
 /// is given a fixed two-line region, so that one needs TooltipHeaderExpander afterwards.
