@@ -93,6 +93,14 @@ public sealed unsafe class TooltipHeaderExpander
         GrowAncestors((AtkResNode*)node, delta);
         node->AtkResNode.SetYFloat(pristineY + topOffset);
         applied[key] = new Applied(pristine, (ushort)target, pristineY);
+
+        if (log)
+        {
+            var parent = node->AtkResNode.ParentNode;
+            Plugin.Log.Information(
+                $"Header expand applied: node={node->AtkResNode.Height}h y={node->AtkResNode.Y} " +
+                $"parent={(parent == null ? 0 : parent->Height)}h");
+        }
     }
 
     public void Clear() => applied.Clear();
