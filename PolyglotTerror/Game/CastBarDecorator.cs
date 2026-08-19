@@ -279,6 +279,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             <= 1 => 0f,
             2 => -10f,
             3 => -23f,
+            4 => -32f,
             _ => MathF.Floor((lines - 1) * LineLift),
         };
 
