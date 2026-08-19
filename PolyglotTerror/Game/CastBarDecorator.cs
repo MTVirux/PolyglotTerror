@@ -16,7 +16,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     public const string OverheadAddonName = "CastBarEnemy";
     public const string PartyListAddonName = "_PartyList";
 
-    private const float LineLift = -10f;
+    private const float LineLift = 0f;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
