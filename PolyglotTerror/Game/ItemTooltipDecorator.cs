@@ -82,8 +82,10 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
                 candidates[entry.Language] = pick(names.GetItem(entry.Language, itemId));
         }
 
-        var composed = LineComposer.Compose(slot.OriginalText, candidates, config.Languages, config.HideDuplicates);
-        var head = slot.OriginalText.Trim();
+        // Compose against the stripped text so an HQ glyph cannot stop a language matching
+        // the line that is already there, then splice onto the untouched original bytes.
+        var head = Strip(slot.OriginalText);
+        var composed = LineComposer.Compose(head, candidates, config.Languages, config.HideDuplicates);
         if (composed is null || !composed.StartsWith(head, StringComparison.Ordinal))
             return;
 
