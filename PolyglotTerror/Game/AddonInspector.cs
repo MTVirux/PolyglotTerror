@@ -63,7 +63,10 @@ public sealed unsafe class AddonInspector
     {
         try
         {
-            return Plugin.PluginInterface.AssemblyLocation.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss");
+            // Read the file fresh - FileInfo caches its timestamps, which reported a stale build.
+            var path = Plugin.PluginInterface.AssemblyLocation.FullName;
+            var written = System.IO.File.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm:ss");
+            return $"{written} ({path})";
         }
         catch (System.Exception)
         {

@@ -65,7 +65,8 @@ public sealed unsafe class TooltipHeaderExpander
         ushort drawHeight = 0;
         node->GetTextDrawSize(&drawWidth, &drawHeight);
 
-        var lines = CountLines(node->NodeText.ToString());
+        // The node's own newlines may be re-encoded, so fall back to the line count we wrote.
+        var lines = Math.Max(CountLines(node->NodeText.ToString()), Lines(appendedText).Length + 1);
         var content = Math.Max(drawHeight, lines * lineSpacing);
         var padding = pristine % lineSpacing;
         var topOffset = config.TooltipNameTopOffset;
@@ -160,6 +161,10 @@ public sealed unsafe class TooltipHeaderExpander
 
     private static AtkTextNode* FindNode(AtkUnitBase* unit, string appendedText)
     {
+        var wanted = Lines(appendedText);
+        if (wanted.Length == 0)
+            return null;
+
         var count = unit->UldManager.NodeListCount;
         for (var i = 0; i < count; i++)
         {
@@ -167,14 +172,41 @@ public sealed unsafe class TooltipHeaderExpander
             if (node == null || node->Type != NodeType.Text)
                 continue;
 
-            // Contains rather than EndsWith: other plugins append their own payloads to tooltip
-            // entries after we have written ours, which would push our lines off the end.
-            var text = (AtkTextNode*)node;
-            if (text->NodeText.ToString().Contains(appendedText, StringComparison.Ordinal))
-                return text;
+            var text = ((AtkTextNode*)node)->NodeText.ToString();
+            if (ContainsAll(text, wanted))
+                return (AtkTextNode*)node;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Matches on whole lines rather than on the newline-joined tail. The game re-encodes the string
+    /// when it copies it into the node, so the newline bytes there are not the ones we wrote and any
+    /// comparison spanning a line break fails even though the text is identical.
+    /// </summary>
+    private static bool ContainsAll(string text, string[] wanted)
+    {
+        foreach (var line in wanted)
+        {
+            if (!text.Contains(line, StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string[] Lines(string text)
+    {
+        var lines = new List<string>();
+        foreach (var line in text.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length > 0)
+                lines.Add(trimmed);
+        }
+
+        return lines.ToArray();
     }
 
     private static int CountLines(string text)
