@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Dalamud.Configuration;
+using Newtonsoft.Json;
 using PolyglotTerror.Core;
 
 namespace PolyglotTerror;
@@ -18,6 +19,7 @@ public class Configuration : IPluginConfiguration
 
     public int Version { get; set; } = 1;
 
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public List<LanguageEntry> Languages { get; set; } =
     [
         new(GameLanguage.English, true),
