@@ -17,7 +17,6 @@ public sealed unsafe class CastBarDecorator : IDisposable
     public const string PartyListAddonName = "_PartyList";
 
     private const float LineLift = -8.5f;
-    private const float TwoLineLift = -10f;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -268,14 +267,21 @@ public sealed unsafe class CastBarDecorator : IDisposable
     }
 
     /// <summary>
-    /// Lifts the text by <see cref="LineLift"/> for every line past the first, since the node grows
-    /// downwards. A single line stays where the game put it, and two lines want a touch more than the
-    /// rate gives. Both the lift and the configured offset move from the game's own position, so they
-    /// stay absolute instead of piling up frame after frame.
+    /// Lifts the text as it grows downwards. The first counts are the ones that look right in game,
+    /// anything taller falls back to <see cref="LineLift"/> per line past the first. Both the lift and
+    /// the configured offset move from the game's own position, so they stay absolute instead of
+    /// piling up frame after frame.
     /// </summary>
     private void OffsetText(AtkTextNode* node, float anchor, int lines)
     {
-        var lift = lines == 2 ? TwoLineLift : MathF.Floor((lines - 1) * LineLift);
+        var lift = lines switch
+        {
+            <= 1 => 0f,
+            2 => -10f,
+            3 => -23f,
+            _ => MathF.Floor((lines - 1) * LineLift),
+        };
+
         node->AtkResNode.SetYFloat(anchor + lift + config.CastBarTextOffset);
     }
 
