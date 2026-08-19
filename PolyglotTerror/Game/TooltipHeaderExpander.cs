@@ -10,14 +10,15 @@ namespace PolyglotTerror.Game;
 /// <remarks>
 /// The game measures a tooltip's description block from its text but gives the name a fixed
 /// two-line region, so extra lines written into the name render over the row beneath it. After the
-/// game has laid the tooltip out we grow the name node, grow every ancestor by the same amount, and
-/// push each ancestor's lower siblings down so the blocks below the header follow.
+/// game has laid the tooltip out we grow the name node by what the game says its text draws, grow
+/// every ancestor by the same amount, and at each level push lower siblings down while growing the
+/// ones that span the node, so frames and collision boxes keep up with the content.
 /// </remarks>
 public sealed unsafe class TooltipHeaderExpander
 {
     private readonly Dictionary<nint, Applied> applied = new();
 
-    public void Expand(AtkUnitBase* unit, string? appendedText)
+    public void Expand(AtkUnitBase* unit, string? appendedText, bool log = false)
     {
         if (unit == null || string.IsNullOrEmpty(appendedText))
             return;
@@ -39,19 +40,33 @@ public sealed unsafe class TooltipHeaderExpander
             ? last.Pristine
             : height;
 
+        // Ask the game how tall the text actually draws - counting newlines misses word wrapping
+        // and assumes the line advance equals LineSpacing. Keep the arithmetic as a floor in case
+        // the measurement comes back unwrapped.
+        ushort drawWidth = 0;
+        ushort drawHeight = 0;
+        node->GetTextDrawSize(&drawWidth, &drawHeight);
+
         var lines = CountLines(node->NodeText.ToString());
-        var allowed = Math.Max(1, pristine / lineSpacing);
-        if (lines <= allowed)
+        var content = Math.Max(drawHeight, lines * lineSpacing);
+        var padding = pristine % lineSpacing;
+        var target = content + padding;
+        var delta = target - height;
+
+        if (log)
         {
-            applied.Remove(key);
-            return;
+            Plugin.Log.Information(
+                $"Header expand: pristine={pristine} height={height} lineSpacing={lineSpacing} " +
+                $"lines={lines} drawn={drawWidth}x{drawHeight} padding={padding} target={target} delta={delta}");
         }
 
-        var padding = pristine - (allowed * lineSpacing);
-        var target = (lines * lineSpacing) + padding;
-        var delta = target - height;
         if (delta <= 0)
+        {
+            if (target <= pristine)
+                applied.Remove(key);
+
             return;
+        }
 
         GrowAncestors((AtkResNode*)node, delta);
         applied[key] = new Applied(pristine, (ushort)target);
@@ -65,21 +80,36 @@ public sealed unsafe class TooltipHeaderExpander
         while (current != null)
         {
             var parent = current->ParentNode;
+            var top = current->Y;
+            var bottom = top + current->Height;
             current->SetHeight((ushort)(current->Height + delta));
 
             if (parent != null)
-                PushSiblingsDown(parent, current, delta);
+                AdjustSiblings(parent, current, top, bottom, delta);
 
             current = parent;
         }
     }
 
-    private static void PushSiblingsDown(AtkResNode* parent, AtkResNode* grown, int delta)
+    /// <summary>
+    /// A sibling that spans the grown node is a frame, background or collision box and has to grow
+    /// with it; one that sits below it is content and has to move down.
+    /// </summary>
+    private static void AdjustSiblings(AtkResNode* parent, AtkResNode* grown, float top, float bottom, int delta)
     {
         for (var child = parent->ChildNode; child != null; child = child->PrevSiblingNode)
         {
-            if (child != grown && child->Y > grown->Y)
+            if (child == grown)
+                continue;
+
+            if (child->Y > top)
+            {
                 child->SetYFloat(child->Y + delta);
+                continue;
+            }
+
+            if (child->Y + child->Height >= bottom)
+                child->SetHeight((ushort)(child->Height + delta));
         }
     }
 

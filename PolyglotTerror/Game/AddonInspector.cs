@@ -38,7 +38,8 @@ public sealed unsafe class AddonInspector
                 continue;
 
             var visible = node->NodeFlags.HasFlag(NodeFlags.Visible);
-            var box = $"x={node->X} y={node->Y} {node->Width}x{node->Height}";
+            var parent = node->ParentNode;
+            var box = $"parent={(parent == null ? 0 : parent->NodeId)} x={node->X} y={node->Y} {node->Width}x{node->Height}";
 
             if (node->Type == NodeType.Text)
             {

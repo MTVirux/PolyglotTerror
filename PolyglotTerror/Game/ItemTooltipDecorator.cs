@@ -102,7 +102,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     {
         var addon = (AtkUnitBase*)(nint)args.Addon;
         if (config.ShowItemName)
-            expander.Expand(addon, nameSlot.AppendedText);
+            expander.Expand(addon, nameSlot.AppendedText, dump == DumpStage.AwaitingLayout);
 
         if (dump != DumpStage.AwaitingLayout)
             return;
