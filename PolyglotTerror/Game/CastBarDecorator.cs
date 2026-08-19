@@ -16,7 +16,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     public const string OverheadAddonName = "CastBarEnemy";
     public const string PartyListAddonName = "_PartyList";
 
-    private const float LineLift = 0f;
+    private const float LineLift = -8.5f;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -274,7 +274,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     /// </summary>
     private void OffsetText(AtkTextNode* node, float anchor, int lines)
     {
-        var lift = lines > 1 ? lines * LineLift : 0f;
+        var lift = lines > 1 ? MathF.Ceiling(lines * LineLift) : 0f;
         node->AtkResNode.SetYFloat(anchor + lift + config.CastBarTextOffset);
     }
 
