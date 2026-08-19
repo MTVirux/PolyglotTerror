@@ -108,8 +108,10 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private void OnPostRequestedUpdate(AddonEvent type, AddonArgs args)
     {
         var addon = (AtkUnitBase*)(nint)args.Addon;
-        if (config.ShowItemName)
+        if (config.ShowItemName && config.ExpandTooltipName)
             expander.Expand(addon, nameSlot.AppendedText, dump == DumpStage.AwaitingLayout);
+        else
+            expander.Restore();
 
         if (dump != DumpStage.AwaitingLayout)
             return;

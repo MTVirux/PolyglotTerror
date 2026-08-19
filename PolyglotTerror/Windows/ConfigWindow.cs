@@ -120,6 +120,13 @@ public sealed class ConfigWindow : Window, IDisposable
 
         ImGui.TextDisabled("Moves the cast bar text up or down. The bar itself stays where it is.");
 
+        Option(
+            "Resize tooltips to fit extra name lines",
+            configuration.ExpandTooltipName,
+            value => configuration.ExpandTooltipName = value);
+
+        ImGui.BeginDisabled(!configuration.ExpandTooltipName);
+
         var space = configuration.TooltipNameExtraSpace;
         if (ImGui.SliderInt(
                 "Tooltip name space",
@@ -141,6 +148,8 @@ public sealed class ConfigWindow : Window, IDisposable
             configuration.TooltipNameTopOffset = top;
             Apply();
         }
+
+        ImGui.EndDisabled();
 
         ImGui.TextDisabled("Extra room under the tooltip name, and how far down it starts.");
     }

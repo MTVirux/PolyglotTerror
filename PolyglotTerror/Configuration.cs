@@ -58,6 +58,12 @@ public class Configuration : IPluginConfiguration
     public int CastBarTextOffset { get; set; }
 
     /// <summary>
+    /// Resizes the tooltip so extra name lines fit. Off by default: the game gives the name a fixed
+    /// two-line region, so making room means moving the blocks below it and growing the window.
+    /// </summary>
+    public bool ExpandTooltipName { get; set; }
+
+    /// <summary>
     /// Extra room added under the last line of a tooltip's name block.
     /// </summary>
     public int TooltipNameExtraSpace { get; set; }
