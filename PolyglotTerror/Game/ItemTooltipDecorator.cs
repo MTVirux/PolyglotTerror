@@ -17,20 +17,37 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
     private readonly Configuration config;
     private readonly NameCatalog names;
+    private readonly AddonInspector inspector;
     private readonly TooltipSlot nameSlot = new();
     private readonly TooltipSlot categorySlot = new();
     private readonly TooltipSlot descriptionSlot = new();
+    private DumpStage dump;
 
-    public ItemTooltipDecorator(Configuration config, NameCatalog names)
+    public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector)
     {
         this.config = config;
         this.names = names;
+        this.inspector = inspector;
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnPostRequestedUpdate);
     }
 
+    private enum DumpStage
+    {
+        Idle,
+        Armed,
+        AwaitingLayout,
+    }
+
+    /// <summary>
+    /// Logs the next tooltip's strings and resulting node geometry. Typing a command dismisses the
+    /// tooltip, so the dump has to be armed first and fire on the next hover.
+    /// </summary>
+    public void ArmDump() => dump = DumpStage.Armed;
+
     public void Dispose()
-        => Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
+        => Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate);
 
     private void OnPreRequestedUpdate(AddonEvent type, AddonArgs args)
     {
@@ -53,6 +70,12 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         if (client.Name is null)
             return;
 
+        if (dump == DumpStage.Armed)
+        {
+            Plugin.Log.Information($"ItemDetail strings before decorating item {itemId}:");
+            inspector.DumpTooltipStrings(data);
+        }
+
         if (config.ShowItemName)
             nameSlot.Decorate(data, itemId, client.Name, head => Compose(head, itemId, static item => item.Name));
 
@@ -61,6 +84,22 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
         if (config.ShowItemDescription && client.Description is not null)
             descriptionSlot.Decorate(data, itemId, client.Description, head => Compose(head, itemId, static item => item.Description));
+
+        if (dump != DumpStage.Armed)
+            return;
+
+        Plugin.Log.Information("ItemDetail strings after decorating:");
+        inspector.DumpTooltipStrings(data);
+        dump = DumpStage.AwaitingLayout;
+    }
+
+    private void OnPostRequestedUpdate(AddonEvent type, AddonArgs args)
+    {
+        if (dump != DumpStage.AwaitingLayout)
+            return;
+
+        dump = DumpStage.Idle;
+        inspector.DumpNodes(AddonName, (AtkUnitBase*)(nint)args.Addon);
     }
 
     private string? Compose(string head, uint itemId, Func<ItemNames, string?> pick)

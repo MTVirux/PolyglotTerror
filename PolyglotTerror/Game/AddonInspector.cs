@@ -17,8 +17,19 @@ public sealed unsafe class AddonInspector
             return;
         }
 
+        DumpNodes(addonName, unit);
+    }
+
+    public void DumpNodes(string addonName, AtkUnitBase* unit)
+    {
+        if (unit == null)
+            return;
+
         var count = unit->UldManager.NodeListCount;
-        Plugin.Log.Information($"Addon {addonName}: {count} nodes, visible={unit->IsVisible}");
+        var root = unit->RootNode;
+        var rootSize = root == null ? "none" : $"{root->Width}x{root->Height}";
+        Plugin.Log.Information(
+            $"Addon {addonName}: {count} nodes, visible={unit->IsVisible}, root={rootSize}, scale={unit->Scale}");
 
         for (var i = 0; i < count; i++)
         {
@@ -27,14 +38,18 @@ public sealed unsafe class AddonInspector
                 continue;
 
             var visible = node->NodeFlags.HasFlag(NodeFlags.Visible);
+            var box = $"x={node->X} y={node->Y} {node->Width}x{node->Height}";
+
             if (node->Type == NodeType.Text)
             {
-                var text = ((AtkTextNode*)node)->NodeText.ToString();
-                Plugin.Log.Information($"  [{i}] id={node->NodeId} Text visible={visible} \"{text}\"");
+                var text = (AtkTextNode*)node;
+                Plugin.Log.Information(
+                    $"  [{i}] id={node->NodeId} Text visible={visible} {box} flags={text->TextFlags} " +
+                    $"lineSpacing={text->LineSpacing} fontSize={text->FontSize} \"{text->NodeText}\"");
             }
             else
             {
-                Plugin.Log.Information($"  [{i}] id={node->NodeId} {node->Type} visible={visible}");
+                Plugin.Log.Information($"  [{i}] id={node->NodeId} {node->Type} visible={visible} {box}");
             }
         }
     }

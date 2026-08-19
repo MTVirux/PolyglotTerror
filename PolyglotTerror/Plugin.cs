@@ -43,7 +43,7 @@ public sealed class Plugin : IDalamudPlugin
         RegisterCastBars();
 
         if (Configuration.DecorateTooltip)
-            tooltips = new ItemTooltipDecorator(Configuration, Names);
+            tooltips = new ItemTooltipDecorator(Configuration, Names, inspector);
 
         if (Configuration.DecorateActionTooltip)
             actionTooltips = new ActionTooltipDecorator(Configuration, Names);
@@ -100,6 +100,13 @@ public sealed class Plugin : IDalamudPlugin
         if (parts.Length == 2 && parts[0] == "nodes")
         {
             inspector.DumpNodes(parts[1]);
+            return;
+        }
+
+        if (parts.Length == 2 && parts[0] == "dump" && parts[1] == "item")
+        {
+            tooltips?.ArmDump();
+            Log.Information("Hover an item to dump its tooltip.");
             return;
         }
 
