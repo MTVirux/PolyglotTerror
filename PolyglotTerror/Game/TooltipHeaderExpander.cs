@@ -24,15 +24,30 @@ public sealed unsafe class TooltipHeaderExpander
     public void Expand(AtkUnitBase* unit, string? appendedText, bool log = false)
     {
         if (unit == null || string.IsNullOrEmpty(appendedText))
+        {
+            if (log)
+                Plugin.Log.Information($"Header expand: no appended text (unit={(nint)unit:X})");
+
             return;
+        }
 
         var node = FindNode(unit, appendedText);
         if (node == null)
+        {
+            if (log)
+                LogMissingNode(unit, appendedText);
+
             return;
+        }
 
         var lineSpacing = node->LineSpacing;
         if (lineSpacing == 0)
+        {
+            if (log)
+                Plugin.Log.Information("Header expand: node has no line spacing");
+
             return;
+        }
 
         var key = (nint)node;
         var height = node->AtkResNode.Height;
@@ -119,6 +134,27 @@ public sealed unsafe class TooltipHeaderExpander
 
             if (child->Y <= 0 && child->Y + child->Height >= parentHeight)
                 child->SetHeight((ushort)(child->Height + delta));
+        }
+    }
+
+    /// <summary>
+    /// Reports why the tail did not match any node, since that is invisible from the node dump.
+    /// </summary>
+    private static void LogMissingNode(AtkUnitBase* unit, string appendedText)
+    {
+        Plugin.Log.Information(
+            $"Header expand: no node ends with the appended tail ({appendedText.Length} chars): \"{appendedText}\"");
+
+        var count = unit->UldManager.NodeListCount;
+        for (var i = 0; i < count; i++)
+        {
+            var node = unit->UldManager.NodeList[i];
+            if (node == null || node->Type != NodeType.Text)
+                continue;
+
+            var text = ((AtkTextNode*)node)->NodeText.ToString();
+            if (text.Contains('\n'))
+                Plugin.Log.Information($"  candidate id={node->NodeId} ({text.Length} chars): \"{text}\"");
         }
     }
 
