@@ -274,7 +274,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     /// </summary>
     private void OffsetText(AtkTextNode* node, float anchor, int lines)
     {
-        var lift = lines > 1 ? MathF.Floor(lines * LineLift) : 0f;
+        var lift = lines > 1 ? MathF.Ceiling(lines * LineLift) : 0f;
         node->AtkResNode.SetYFloat(anchor + lift + config.CastBarTextOffset);
     }
 
