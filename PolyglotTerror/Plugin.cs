@@ -1,12 +1,18 @@
+using System;
+using Dalamud.Game.Command;
+using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using PolyglotTerror.Game;
+using PolyglotTerror.Windows;
 
 namespace PolyglotTerror;
 
 public sealed class Plugin : IDalamudPlugin
 {
+    private const string CommandName = "/polyglot";
+
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
@@ -18,12 +24,29 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
+    private readonly WindowSystem windowSystem = new("PolyglotTerror");
+    private readonly AddonInspector inspector = new();
+    private readonly ConfigWindow configWindow;
+    private readonly CastBarDecorator castBars;
+
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Migrate();
 
-        Log.Information("PolyglotTerror loaded.");
+        configWindow = new ConfigWindow(this);
+        windowSystem.AddWindow(configWindow);
+
+        castBars = new CastBarDecorator(Configuration, Names);
+        RegisterCastBars();
+
+        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree.",
+        });
+
+        PluginInterface.UiBuilder.Draw += windowSystem.Draw;
+        PluginInterface.UiBuilder.OpenConfigUi += OpenConfig;
     }
 
     public Configuration Configuration { get; }
@@ -32,5 +55,41 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
+        PluginInterface.UiBuilder.OpenConfigUi -= OpenConfig;
+        CommandManager.RemoveHandler(CommandName);
+        windowSystem.RemoveAllWindows();
+        configWindow.Dispose();
+        castBars.Dispose();
+    }
+
+    private void RegisterCastBars()
+    {
+        if (Configuration.DecorateOwnCastBar)
+            castBars.Register(new CastBarSurface("_CastBar", 0, CastSource.Self, LanguagePolicy.FullStack));
+
+        if (Configuration.DecorateTargetBars)
+        {
+            castBars.Register(new CastBarSurface("_TargetInfo", 12, CastSource.Target, LanguagePolicy.FullStack));
+            castBars.Register(new CastBarSurface("_TargetInfoCastBar", 4, CastSource.Target, LanguagePolicy.FullStack));
+            castBars.Register(new CastBarSurface("_FocusTargetInfo", 5, CastSource.FocusTarget, LanguagePolicy.FullStack));
+        }
+
+        if (Configuration.DecorateOverheadBars)
+            castBars.RegisterOverheadBars();
+    }
+
+    private void OpenConfig() => configWindow.IsOpen = true;
+
+    private void OnCommand(string command, string arguments)
+    {
+        var parts = arguments.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 2 && parts[0] == "nodes")
+        {
+            inspector.DumpNodes(parts[1]);
+            return;
+        }
+
+        OpenConfig();
     }
 }
