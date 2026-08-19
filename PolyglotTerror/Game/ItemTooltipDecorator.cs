@@ -22,7 +22,6 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private readonly TooltipSlot nameSlot = new();
     private readonly TooltipSlot categorySlot = new();
     private readonly TooltipSlot descriptionSlot = new();
-    private readonly TooltipHeaderExpander expander;
     private DumpStage dump;
 
     public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector)
@@ -30,11 +29,9 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         this.config = config;
         this.names = names;
         this.inspector = inspector;
-        expander = new TooltipHeaderExpander(config);
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnPostRequestedUpdate);
-        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, AddonName, OnFinalize);
     }
 
     private enum DumpStage
@@ -52,8 +49,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
     public void Dispose()
     {
-        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate, OnFinalize);
-        expander.Restore();
+        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate);
     }
 
     private void OnPreRequestedUpdate(AddonEvent type, AddonArgs args)
@@ -100,24 +96,13 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         dump = DumpStage.AwaitingLayout;
     }
 
-    /// <summary>
-    /// The nodes are freed right after this, so drop them rather than putting them back.
-    /// </summary>
-    private void OnFinalize(AddonEvent type, AddonArgs args) => expander.Forget();
-
     private void OnPostRequestedUpdate(AddonEvent type, AddonArgs args)
     {
-        var addon = (AtkUnitBase*)(nint)args.Addon;
-        if (config.ShowItemName && config.ExpandTooltipName)
-            expander.Expand(addon, nameSlot.AppendedText, dump == DumpStage.AwaitingLayout);
-        else
-            expander.Restore();
-
         if (dump != DumpStage.AwaitingLayout)
             return;
 
         dump = DumpStage.Idle;
-        inspector.DumpNodes(AddonName, addon);
+        inspector.DumpNodes(AddonName, (AtkUnitBase*)(nint)args.Addon);
     }
 
     private string? Compose(string head, uint itemId, Func<ItemNames, string?> pick)
