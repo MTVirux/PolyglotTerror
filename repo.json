@@ -1,0 +1,30 @@
+[
+  {
+    "Author": "MTVirux",
+    "Name": "PolyglotTerror",
+    "Punchline": "Item and action names in several languages at once.",
+    "Description": "Adds the item and action name in the languages you pick to the game's own tooltips and cast bars, read from the client's own data.\n\nDM @mtvirux on discord for assistance or bug reports.",
+    "Tags": [
+      "language",
+      "translation",
+      "tooltip",
+      "castbar",
+      "Terror"
+    ],
+    "InternalName": "PolyglotTerror",
+    "AssemblyVersion": "1.0.0.0",
+    "TestingAssemblyVersion": "1.0.0.0",
+    "RepoUrl": "https://github.com/MTVirux/PolyglotTerror",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "TestingDalamudApiLevel": 15,
+    "IsHide": "False",
+    "IsTestingExclusive": "False",
+    "DownloadCount": 0,
+    "LastUpdate": 0,
+    "DownloadLinkInstall": "https://github.com/MTVirux/PolyglotTerror/releases/download/1.0.0.0/PolyglotTerror.zip",
+    "DownloadLinkUpdate": "https://github.com/MTVirux/PolyglotTerror/releases/download/1.0.0.0/PolyglotTerror.zip",
+    "DownloadLinkTesting": "https://github.com/MTVirux/PolyglotTerror/releases/download/1.0.0.0/PolyglotTerror.zip",
+    "IconUrl": "https://raw.githubusercontent.com/MTVirux/PolyglotTerror/main/images/icon.png"
+  }
+]

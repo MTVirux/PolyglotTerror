@@ -1,0 +1,13 @@
+# Build output
+bin/
+obj/
+*.user
+
+# Local tooling workspace
+.claude/
+
+# Local dev manifest is generated/managed locally
+*.lscache
+
+# Build and publish helper scripts stay local
+scripts/

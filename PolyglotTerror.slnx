@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PolyglotTerror/PolyglotTerror.csproj" />
+  <Project Path="tests/PolyglotTerror.Tests/PolyglotTerror.Tests.csproj" />
+</Solution>

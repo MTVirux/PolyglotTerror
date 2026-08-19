@@ -1,0 +1,19 @@
+{
+  "_comment": "Local-dev stub. CI overwrites this with repo.json content at release time. Edit repo.json (the single source of truth); this file only exists so local debug builds load with sensible metadata.",
+  "Author": "MTVirux",
+  "Name": "PolyglotTerror",
+  "Punchline": "Item and action names in several languages at once.",
+  "Description": "Adds the item and action name in the languages you pick to the game's own tooltips and cast bars, read from the client's own data.",
+  "InternalName": "PolyglotTerror",
+  "AssemblyVersion": "1.0.0.0",
+  "RepoUrl": "https://github.com/MTVirux/PolyglotTerror",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "Tags": [
+    "language",
+    "translation",
+    "tooltip",
+    "castbar",
+    "Terror"
+  ]
+}
