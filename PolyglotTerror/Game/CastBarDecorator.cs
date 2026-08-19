@@ -16,7 +16,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     public const string OverheadAddonName = "CastBarEnemy";
     public const string PartyListAddonName = "_PartyList";
 
-    private const float LineLift = -8f;
+    private const float LineLift = -9f;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -24,7 +24,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     private readonly Dictionary<string, CastBarSurface> surfaces = new();
     private readonly Dictionary<string, uint> discoveredNodeIds = new();
     private readonly Dictionary<nint, string> lastWritten = new();
-    private readonly Dictionary<nint, float> baseTextY = new();
+    private readonly Dictionary<string, Dictionary<nint, NodeState>> touched = new();
     private bool overheadRegistered;
     private bool partyListRegistered;
 
@@ -41,6 +41,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, surface.AddonName, OnDraw);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostDraw, surface.AddonName, OnDraw);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, surface.AddonName, OnFinalize);
     }
 
     /// <summary>
@@ -55,6 +56,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
         overheadRegistered = true;
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, OverheadAddonName, OnOverheadDraw);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostDraw, OverheadAddonName, OnOverheadDraw);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, OverheadAddonName, OnFinalize);
     }
 
     /// <summary>
@@ -69,16 +71,52 @@ public sealed unsafe class CastBarDecorator : IDisposable
         partyListRegistered = true;
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, PartyListAddonName, OnPartyListDraw);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostDraw, PartyListAddonName, OnPartyListDraw);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, PartyListAddonName, OnFinalize);
     }
 
     public void Dispose()
     {
-        Plugin.AddonLifecycle.UnregisterListener(OnDraw, OnOverheadDraw, OnPartyListDraw);
+        Plugin.AddonLifecycle.UnregisterListener(OnDraw, OnOverheadDraw, OnPartyListDraw, OnFinalize);
+        RestoreTouchedNodes();
         surfaces.Clear();
         discoveredNodeIds.Clear();
         lastWritten.Clear();
-        baseTextY.Clear();
+        touched.Clear();
         writer.Dispose();
+    }
+
+    /// <summary>
+    /// Drops what we know about an addon's nodes, since they are freed right after this event and
+    /// their pointers must not be touched again.
+    /// </summary>
+    private void OnFinalize(AddonEvent type, AddonArgs args)
+    {
+        if (!touched.Remove(args.AddonName, out var nodes))
+            return;
+
+        foreach (var key in nodes.Keys)
+        {
+            lastWritten.Remove(key);
+            writer.Forget(key);
+        }
+    }
+
+    /// <summary>
+    /// Puts every node we moved back where the game had it, so unloading the plugin leaves the
+    /// cast bars as they were.
+    /// </summary>
+    private void RestoreTouchedNodes()
+    {
+        foreach (var nodes in touched.Values)
+        {
+            foreach (var (key, state) in nodes)
+            {
+                var node = (AtkTextNode*)key;
+                node->AtkResNode.SetYFloat(state.Y);
+                node->AtkResNode.SetHeight(state.Height);
+                node->TextFlags = state.Flags;
+            }
+        }
     }
 
     private void OnDraw(AddonEvent type, AddonArgs args)
@@ -100,7 +138,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
         var node = ResolveTextNode(addon, surface, clientName);
         if (node != null)
-            Decorate(node, actionId, surface.Policy);
+            Decorate(args.AddonName, node, actionId, surface.Policy);
     }
 
     private void OnOverheadDraw(AddonEvent type, AddonArgs args)
@@ -125,7 +163,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             if (clientName == null || !HoldsActionName(node, clientName))
                 continue;
 
-            Decorate(node, actionId, LanguagePolicy.FullStack);
+            Decorate(args.AddonName, node, actionId, LanguagePolicy.FullStack);
         }
     }
 
@@ -147,7 +185,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
             var node = FindTextNode(addon->UldManager, clientName);
             if (node != null)
-                Decorate(node, actionId, LanguagePolicy.PrimaryOnly);
+                Decorate(args.AddonName, node, actionId, LanguagePolicy.PrimaryOnly);
         }
     }
 
@@ -183,8 +221,10 @@ public sealed unsafe class CastBarDecorator : IDisposable
         return null;
     }
 
-    private void Decorate(AtkTextNode* node, uint actionId, LanguagePolicy policy)
+    private void Decorate(string addonName, AtkTextNode* node, uint actionId, LanguagePolicy policy)
     {
+        var original = Remember(addonName, node);
+
         if (policy == LanguagePolicy.PrimaryOnly)
         {
             var primary = LineComposer.Primary(config.Languages);
@@ -214,7 +254,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             FitLines(node, lines);
         }
 
-        OffsetText(node, lines);
+        OffsetText(node, original.Y, lines);
     }
 
     /// <summary>
@@ -228,19 +268,28 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
     /// <summary>
     /// Lifts the text by <see cref="LineLift"/> for each line shown, since the node grows downwards,
-    /// then applies the configured offset. The first position we see is kept as the anchor, so the
-    /// offset stays absolute instead of piling up frame after frame.
+    /// then applies the configured offset. Both move from the game's own position, so the offset
+    /// stays absolute instead of piling up frame after frame.
     /// </summary>
-    private void OffsetText(AtkTextNode* node, int lines)
+    private void OffsetText(AtkTextNode* node, float anchor, int lines) =>
+        node->AtkResNode.SetYFloat(anchor + (lines * LineLift) + config.CastBarTextOffset);
+
+    /// <summary>
+    /// Records how the game had a node the first time we touch it, so we can put it back later.
+    /// </summary>
+    private NodeState Remember(string addonName, AtkTextNode* node)
     {
+        if (!touched.TryGetValue(addonName, out var nodes))
+            touched[addonName] = nodes = new Dictionary<nint, NodeState>();
+
         var key = (nint)node;
-        if (!baseTextY.TryGetValue(key, out var anchor))
+        if (!nodes.TryGetValue(key, out var state))
         {
-            anchor = node->AtkResNode.Y;
-            baseTextY[key] = anchor;
+            state = new NodeState(node->AtkResNode.Y, node->AtkResNode.Height, node->TextFlags);
+            nodes[key] = state;
         }
 
-        node->AtkResNode.SetYFloat(anchor + (lines * LineLift) + config.CastBarTextOffset);
+        return state;
     }
 
     private static IBattleChara? ResolveCaster(CastSource source) => source switch
@@ -306,6 +355,8 @@ public sealed unsafe class CastBarDecorator : IDisposable
         var node = addon->GetNodeById(nodeId);
         return node == null || node->Type != NodeType.Text ? null : (AtkTextNode*)node;
     }
+
+    private readonly record struct NodeState(float Y, ushort Height, TextFlags Flags);
 
     // Once we have written to a node the game's plain name is gone, so our own text counts as a match.
     private bool HoldsActionName(AtkTextNode* node, string clientName)
