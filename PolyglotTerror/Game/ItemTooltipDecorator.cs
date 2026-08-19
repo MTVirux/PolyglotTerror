@@ -8,8 +8,9 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// Appends extra language lines to the item tooltip's backing string array before the game
-/// lays the window out, so the game grows the tooltip around the taller text by itself.
+/// Appends extra language lines to the item tooltip's backing string array before the game lays
+/// the window out. The description block is measured from its text and grows on its own; the name
+/// is given a fixed two-line region, so that one needs TooltipHeaderExpander afterwards.
 /// </summary>
 public sealed unsafe class ItemTooltipDecorator : IDisposable
 {
@@ -21,6 +22,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private readonly TooltipSlot nameSlot = new();
     private readonly TooltipSlot categorySlot = new();
     private readonly TooltipSlot descriptionSlot = new();
+    private readonly TooltipHeaderExpander expander = new();
     private DumpStage dump;
 
     public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector)
@@ -47,7 +49,10 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     public void ArmDump() => dump = DumpStage.Armed;
 
     public void Dispose()
-        => Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate);
+    {
+        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate);
+        expander.Clear();
+    }
 
     private void OnPreRequestedUpdate(AddonEvent type, AddonArgs args)
     {
@@ -95,11 +100,15 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
     private void OnPostRequestedUpdate(AddonEvent type, AddonArgs args)
     {
+        var addon = (AtkUnitBase*)(nint)args.Addon;
+        if (config.ShowItemName)
+            expander.Expand(addon, nameSlot.AppendedText);
+
         if (dump != DumpStage.AwaitingLayout)
             return;
 
         dump = DumpStage.Idle;
-        inspector.DumpNodes(AddonName, (AtkUnitBase*)(nint)args.Addon);
+        inspector.DumpNodes(AddonName, addon);
     }
 
     private string? Compose(string head, uint itemId, Func<ItemNames, string?> pick)

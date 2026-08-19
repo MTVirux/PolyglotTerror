@@ -50,7 +50,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;

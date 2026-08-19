@@ -19,6 +19,12 @@ internal sealed unsafe class TooltipSlot
     private byte[] written = [];
 
     /// <summary>
+    /// The lines appended by the last write. The game keeps the original bytes verbatim, so this
+    /// tail - not the composed string - is what reliably identifies the node rendering this entry.
+    /// </summary>
+    public string? AppendedText { get; private set; }
+
+    /// <summary>
     /// Appends the extra lines <paramref name="compose"/> builds from the entry's own text.
     /// </summary>
     public void Decorate(StringArrayData* data, uint subject, string clientText, Func<string, string?> compose)
@@ -38,13 +44,15 @@ internal sealed unsafe class TooltipSlot
 
         // Only the tail is built from text; the game's own bytes are copied verbatim so any
         // SeString payloads inside them survive the rewrite.
-        var tail = Encoding.UTF8.GetBytes(composed[head.Length..]);
+        var tailText = composed[head.Length..];
+        var tail = Encoding.UTF8.GetBytes(tailText);
         var value = new byte[original.Length + tail.Length + 1];
         original.CopyTo(value, 0);
         tail.CopyTo(value, original.Length);
 
         data->SetValue(slot, value.AsSpan(), readBeforeWrite: false, managed: true, suppressUpdates: true);
         written = value[..^1];
+        AppendedText = tailText;
     }
 
     private int Locate(StringArrayData* data, uint subject, string expected)
@@ -85,6 +93,7 @@ internal sealed unsafe class TooltipSlot
         original = raw.ToArray();
         originalText = text;
         written = [];
+        AppendedText = null;
         return true;
     }
 

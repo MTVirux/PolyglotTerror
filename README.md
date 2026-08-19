@@ -20,6 +20,8 @@ All names are read from the game client's own Excel data through Lumina, so they
 
 `/polyglot nodes <AddonName>` logs an addon's node tree to the plugin log. This is only useful when a surface stops working after a game patch and you want to find the new node ids.
 
+`/polyglot dump item` logs the next item tooltip you hover: its strings before and after the extra lines are added, and the resulting node layout. Same purpose, for tooltips rather than cast bars.
+
 ## What it covers
 
 - Item tooltips, everywhere the game shows them
