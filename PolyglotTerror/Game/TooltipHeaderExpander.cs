@@ -16,7 +16,10 @@ namespace PolyglotTerror.Game;
 /// </remarks>
 public sealed unsafe class TooltipHeaderExpander
 {
+    private readonly Configuration config;
     private readonly Dictionary<nint, Applied> applied = new();
+
+    public TooltipHeaderExpander(Configuration config) => this.config = config;
 
     public void Expand(AtkUnitBase* unit, string? appendedText, bool log = false)
     {
@@ -33,12 +36,12 @@ public sealed unsafe class TooltipHeaderExpander
 
         var key = (nint)node;
         var height = node->AtkResNode.Height;
+        var known = applied.TryGetValue(key, out var last) && last.Height == height;
 
-        // The game rebuilds the layout on most updates, but not all, so only trust a remembered
-        // pristine height while the node still has the height we last gave it.
-        var pristine = applied.TryGetValue(key, out var last) && last.Height == height
-            ? last.Pristine
-            : height;
+        // The game rebuilds the layout on most updates, but not all, so only trust remembered
+        // pristine values while the node still has the height we last gave it.
+        var pristine = known ? last.Pristine : height;
+        var pristineY = known ? last.Y : node->AtkResNode.Y;
 
         // Ask the game how tall the text actually draws - counting newlines misses word wrapping
         // and assumes the line advance equals LineSpacing. Keep the arithmetic as a floor in case
@@ -50,7 +53,8 @@ public sealed unsafe class TooltipHeaderExpander
         var lines = CountLines(node->NodeText.ToString());
         var content = Math.Max(drawHeight, lines * lineSpacing);
         var padding = pristine % lineSpacing;
-        var target = content + padding;
+        var topOffset = config.TooltipNameTopOffset;
+        var target = content + padding + topOffset + config.TooltipNameExtraSpace;
         var delta = target - height;
 
         if (log)
@@ -69,7 +73,8 @@ public sealed unsafe class TooltipHeaderExpander
         }
 
         GrowAncestors((AtkResNode*)node, delta);
-        applied[key] = new Applied(pristine, (ushort)target);
+        node->AtkResNode.SetYFloat(pristineY + topOffset);
+        applied[key] = new Applied(pristine, (ushort)target, pristineY);
     }
 
     public void Clear() => applied.Clear();
@@ -142,5 +147,5 @@ public sealed unsafe class TooltipHeaderExpander
         return lines;
     }
 
-    private readonly record struct Applied(ushort Pristine, ushort Height);
+    private readonly record struct Applied(ushort Pristine, ushort Height, float Y);
 }

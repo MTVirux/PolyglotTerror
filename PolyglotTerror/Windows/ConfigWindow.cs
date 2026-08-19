@@ -119,6 +119,30 @@ public sealed class ConfigWindow : Window, IDisposable
         }
 
         ImGui.TextDisabled("Moves the cast bar text up or down. The bar itself stays where it is.");
+
+        var space = configuration.TooltipNameExtraSpace;
+        if (ImGui.SliderInt(
+                "Tooltip name space",
+                ref space,
+                Configuration.MinTooltipNameSpace,
+                Configuration.MaxTooltipNameSpace))
+        {
+            configuration.TooltipNameExtraSpace = space;
+            Apply();
+        }
+
+        var top = configuration.TooltipNameTopOffset;
+        if (ImGui.SliderInt(
+                "Tooltip name top offset",
+                ref top,
+                Configuration.MinTooltipNameSpace,
+                Configuration.MaxTooltipNameSpace))
+        {
+            configuration.TooltipNameTopOffset = top;
+            Apply();
+        }
+
+        ImGui.TextDisabled("Extra room under the tooltip name, and how far down it starts.");
     }
 
     private void Swap(int a, int b)

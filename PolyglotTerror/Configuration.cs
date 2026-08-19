@@ -12,6 +12,10 @@ public class Configuration : IPluginConfiguration
 
     public const int MaxCastBarTextOffset = 40;
 
+    public const int MinTooltipNameSpace = 0;
+
+    public const int MaxTooltipNameSpace = 40;
+
     public int Version { get; set; } = 1;
 
     public List<LanguageEntry> Languages { get; set; } =
@@ -50,6 +54,16 @@ public class Configuration : IPluginConfiguration
     /// Moves the cast bar text up or down without resizing the bar itself.
     /// </summary>
     public int CastBarTextOffset { get; set; }
+
+    /// <summary>
+    /// Extra room added under the last line of a tooltip's name block.
+    /// </summary>
+    public int TooltipNameExtraSpace { get; set; }
+
+    /// <summary>
+    /// Pushes a tooltip's name block down, growing the header by the same amount.
+    /// </summary>
+    public int TooltipNameTopOffset { get; set; }
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or

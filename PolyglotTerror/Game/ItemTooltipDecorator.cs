@@ -22,7 +22,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private readonly TooltipSlot nameSlot = new();
     private readonly TooltipSlot categorySlot = new();
     private readonly TooltipSlot descriptionSlot = new();
-    private readonly TooltipHeaderExpander expander = new();
+    private readonly TooltipHeaderExpander expander;
     private DumpStage dump;
 
     public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector)
@@ -30,6 +30,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         this.config = config;
         this.names = names;
         this.inspector = inspector;
+        expander = new TooltipHeaderExpander(config);
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnPostRequestedUpdate);
