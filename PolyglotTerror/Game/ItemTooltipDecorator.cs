@@ -34,6 +34,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnPostRequestedUpdate);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, AddonName, OnFinalize);
     }
 
     private enum DumpStage
@@ -51,8 +52,8 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
     public void Dispose()
     {
-        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate);
-        expander.Clear();
+        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate, OnFinalize);
+        expander.Restore();
     }
 
     private void OnPreRequestedUpdate(AddonEvent type, AddonArgs args)
@@ -98,6 +99,11 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         inspector.DumpTooltipStrings(data);
         dump = DumpStage.AwaitingLayout;
     }
+
+    /// <summary>
+    /// The nodes are freed right after this, so drop them rather than putting them back.
+    /// </summary>
+    private void OnFinalize(AddonEvent type, AddonArgs args) => expander.Forget();
 
     private void OnPostRequestedUpdate(AddonEvent type, AddonArgs args)
     {

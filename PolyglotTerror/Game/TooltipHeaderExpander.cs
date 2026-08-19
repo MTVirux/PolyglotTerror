@@ -9,24 +9,26 @@ namespace PolyglotTerror.Game;
 /// </summary>
 /// <remarks>
 /// The game measures a tooltip's description block from its text but gives the name a fixed
-/// two-line region, so extra lines written into the name render over the row beneath it. After the
-/// game has laid the tooltip out we grow the name node by what the game says its text draws, grow
-/// every ancestor by the same amount, and at each level push lower siblings down while growing the
-/// ones that span the node, so frames and collision boxes keep up with the content.
+/// two-line region, so extra lines written into the name render over the row beneath it. The addon
+/// is reused between tooltips and keeps whatever geometry we leave behind, so each pass starts by
+/// putting every node we touched back the way the game had it. Without that our own growth becomes
+/// the baseline for the next calculation and the numbers drift until nothing moves at all.
 /// </remarks>
 public sealed unsafe class TooltipHeaderExpander
 {
     private readonly Configuration config;
-    private readonly Dictionary<nint, Applied> applied = new();
+    private readonly Dictionary<nint, NodeState> touched = new();
 
     public TooltipHeaderExpander(Configuration config) => this.config = config;
 
     public void Expand(AtkUnitBase* unit, string? appendedText, bool log = false)
     {
+        RestoreTouched();
+
         if (unit == null || string.IsNullOrEmpty(appendedText))
         {
             if (log)
-                Plugin.Log.Information($"Header expand: no appended text (unit={(nint)unit:X})");
+                Plugin.Log.Information("Header expand: no appended text");
 
             return;
         }
@@ -49,69 +51,89 @@ public sealed unsafe class TooltipHeaderExpander
             return;
         }
 
-        var key = (nint)node;
-        var height = node->AtkResNode.Height;
-        var known = applied.TryGetValue(key, out var last) && last.Height == height;
+        // Every node is back to the game's own layout, so this really is the pristine height.
+        var pristine = node->AtkResNode.Height;
 
-        // The game rebuilds the layout on most updates, but not all, so only trust remembered
-        // pristine values while the node still has the height we last gave it.
-        var pristine = known ? last.Pristine : height;
-        var pristineY = known ? last.Y : node->AtkResNode.Y;
-
-        // Ask the game how tall the text actually draws - counting newlines misses word wrapping
-        // and assumes the line advance equals LineSpacing. Keep the arithmetic as a floor in case
-        // the measurement comes back unwrapped.
+        // Ask the game how tall the text draws - counting newlines misses word wrapping and assumes
+        // the line advance equals LineSpacing. The line count stays as a floor in case the
+        // measurement comes back clipped to the node.
         ushort drawWidth = 0;
         ushort drawHeight = 0;
         node->GetTextDrawSize(&drawWidth, &drawHeight);
 
-        // The node's own newlines may be re-encoded, so fall back to the line count we wrote.
         var lines = Math.Max(CountLines(node->NodeText.ToString()), Lines(appendedText).Length + 1);
         var content = Math.Max(drawHeight, lines * lineSpacing);
         var padding = pristine % lineSpacing;
         var topOffset = config.TooltipNameTopOffset;
-        var target = content + padding + topOffset + config.TooltipNameExtraSpace;
-        var delta = target - height;
+
+        // Moving the text up needs no extra height, only moving it down does.
+        var target = content + padding + Math.Max(0, topOffset) + config.TooltipNameExtraSpace;
+        var delta = target - pristine;
 
         if (log)
         {
             Plugin.Log.Information(
-                $"Header expand: pristine={pristine} height={height} lineSpacing={lineSpacing} " +
-                $"lines={lines} drawn={drawWidth}x{drawHeight} padding={padding} " +
-                $"space={config.TooltipNameExtraSpace} topOffset={topOffset} known={known} " +
-                $"target={target} delta={delta}");
+                $"Header expand: pristine={pristine} lineSpacing={lineSpacing} lines={lines} " +
+                $"drawn={drawWidth}x{drawHeight} padding={padding} space={config.TooltipNameExtraSpace} " +
+                $"topOffset={topOffset} target={target} delta={delta}");
         }
 
-        if (delta <= 0)
+        if (delta > 0)
+            GrowAncestors((AtkResNode*)node, delta);
+
+        if (topOffset != 0)
         {
-            if (target <= pristine)
-                applied.Remove(key);
-
-            return;
+            Capture((AtkResNode*)node);
+            node->AtkResNode.SetYFloat(node->AtkResNode.Y + topOffset);
         }
-
-        GrowAncestors((AtkResNode*)node, delta);
-        node->AtkResNode.SetYFloat(pristineY + topOffset);
-        applied[key] = new Applied(pristine, (ushort)target, pristineY);
 
         if (log)
         {
             var parent = node->AtkResNode.ParentNode;
             Plugin.Log.Information(
                 $"Header expand applied: node={node->AtkResNode.Height}h y={node->AtkResNode.Y} " +
-                $"parent={(parent == null ? 0 : parent->Height)}h");
+                $"parent={(parent == null ? 0 : parent->Height)}h touched={touched.Count}");
         }
     }
 
-    public void Clear() => applied.Clear();
+    /// <summary>
+    /// Puts every node back and stops tracking them. Use when the addon still exists.
+    /// </summary>
+    public void Restore() => RestoreTouched();
 
-    private static void GrowAncestors(AtkResNode* node, int delta)
+    /// <summary>
+    /// Drops the tracked nodes without touching them, for when the addon has been freed.
+    /// </summary>
+    public void Forget() => touched.Clear();
+
+    private void RestoreTouched()
+    {
+        foreach (var (key, state) in touched)
+        {
+            var node = (AtkResNode*)key;
+            node->SetHeight(state.Height);
+            node->SetYFloat(state.Y);
+        }
+
+        touched.Clear();
+    }
+
+    private void Capture(AtkResNode* node)
+    {
+        var key = (nint)node;
+        if (!touched.ContainsKey(key))
+            touched[key] = new NodeState(node->Height, node->Y);
+    }
+
+    private void GrowAncestors(AtkResNode* node, int delta)
     {
         var current = node;
         while (current != null)
         {
             var parent = current->ParentNode;
             var top = current->Y;
+
+            Capture(current);
             current->SetHeight((ushort)(current->Height + delta));
 
             if (parent != null)
@@ -126,7 +148,7 @@ public sealed unsafe class TooltipHeaderExpander
     /// top to bottom is a frame, background or collision box and grows instead. Anything else is left
     /// alone - the item icon sits beside the name and spans it, but stretching it would distort it.
     /// </summary>
-    private static void AdjustSiblings(AtkResNode* parent, AtkResNode* grown, float top, int delta)
+    private void AdjustSiblings(AtkResNode* parent, AtkResNode* grown, float top, int delta)
     {
         var parentHeight = parent->Height;
 
@@ -137,12 +159,16 @@ public sealed unsafe class TooltipHeaderExpander
 
             if (child->Y > top)
             {
+                Capture(child);
                 child->SetYFloat(child->Y + delta);
                 continue;
             }
 
             if (child->Y <= 0 && child->Y + child->Height >= parentHeight)
+            {
+                Capture(child);
                 child->SetHeight((ushort)(child->Height + delta));
+            }
         }
     }
 
@@ -152,7 +178,7 @@ public sealed unsafe class TooltipHeaderExpander
     private static void LogMissingNode(AtkUnitBase* unit, string appendedText)
     {
         Plugin.Log.Information(
-            $"Header expand: no node contains the appended tail ({appendedText.Length} chars): \"{appendedText}\"");
+            $"Header expand: no node holds the appended lines ({appendedText.Length} chars)");
 
         var count = unit->UldManager.NodeListCount;
         for (var i = 0; i < count; i++)
@@ -229,5 +255,5 @@ public sealed unsafe class TooltipHeaderExpander
         return lines;
     }
 
-    private readonly record struct Applied(ushort Pristine, ushort Height, float Y);
+    private readonly record struct NodeState(ushort Height, float Y);
 }
