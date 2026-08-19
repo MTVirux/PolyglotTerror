@@ -29,7 +29,8 @@ public sealed unsafe class AddonInspector
         var root = unit->RootNode;
         var rootSize = root == null ? "none" : $"{root->Width}x{root->Height}";
         Plugin.Log.Information(
-            $"Addon {addonName}: {count} nodes, visible={unit->IsVisible}, root={rootSize}, scale={unit->Scale}");
+            $"Addon {addonName}: {count} nodes, visible={unit->IsVisible}, root={rootSize}, " +
+            $"scale={unit->Scale}, build={BuildStamp()}");
 
         for (var i = 0; i < count; i++)
         {
@@ -52,6 +53,21 @@ public sealed unsafe class AddonInspector
             {
                 Plugin.Log.Information($"  [{i}] id={node->NodeId} {node->Type} visible={visible} {box}");
             }
+        }
+    }
+
+    /// <summary>
+    /// When the loaded plugin is older than the source, every other number here is misleading.
+    /// </summary>
+    private static string BuildStamp()
+    {
+        try
+        {
+            return Plugin.PluginInterface.AssemblyLocation.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+        catch (System.Exception)
+        {
+            return "unknown";
         }
     }
 
