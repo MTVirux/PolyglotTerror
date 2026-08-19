@@ -26,7 +26,13 @@ public class Configuration : IPluginConfiguration
 
     public bool ShowItemDescription { get; set; }
 
+    public bool ShowActionName { get; set; } = true;
+
+    public bool ShowActionDescription { get; set; }
+
     public bool DecorateTooltip { get; set; } = true;
+
+    public bool DecorateActionTooltip { get; set; } = true;
 
     public bool DecorateOwnCastBar { get; set; } = true;
 

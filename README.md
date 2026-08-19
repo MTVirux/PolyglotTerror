@@ -23,6 +23,8 @@ All names are read from the game client's own Excel data through Lumina, so they
 ## What it covers
 
 - Item tooltips, everywhere the game shows them
+- Action tooltips: combat actions and traits, crafting and gathering actions, general and main
+  commands, chocobo actions, mounts, minions and fashion accessories
 - Your own cast bar
 - The target and focus target cast bars
 - Cast bars over enemies
@@ -39,6 +41,8 @@ Korean and Chinese run on separate clients whose data is not installed alongside
 ## Known limitations
 
 The game's UI font has no CJK coverage beyond Japanese, so there is nothing to gain from adding more even if the data were there.
+
+Fashion accessories have no description text in the game data, so only their name gets extra lines.
 
 Node ids are game version specific. After a major patch a surface may stop adding lines until the ids are updated. It will not show wrong text - it just leaves the game's own text alone.
 

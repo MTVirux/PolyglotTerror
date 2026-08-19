@@ -78,6 +78,8 @@ public sealed class ConfigWindow : Window, IDisposable
         Option("Item name", configuration.ShowItemName, value => configuration.ShowItemName = value);
         Option("Item category", configuration.ShowItemCategory, value => configuration.ShowItemCategory = value);
         Option("Item description", configuration.ShowItemDescription, value => configuration.ShowItemDescription = value);
+        Option("Action name", configuration.ShowActionName, value => configuration.ShowActionName = value);
+        Option("Action description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
 
         ImGui.TextDisabled("Descriptions in four languages make for a very tall tooltip.");
     }
@@ -87,6 +89,7 @@ public sealed class ConfigWindow : Window, IDisposable
         Heading("Where to show translations");
 
         Option("Item tooltips", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
+        Option("Action tooltips", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
         Option("Your own cast bar", configuration.DecorateOwnCastBar, value => configuration.DecorateOwnCastBar = value);
         Option("Target and focus target cast bars", configuration.DecorateTargetBars, value => configuration.DecorateTargetBars = value);
         Option("Cast bars over enemies", configuration.DecorateOverheadBars, value => configuration.DecorateOverheadBars = value);

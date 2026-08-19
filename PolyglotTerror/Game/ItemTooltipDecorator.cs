@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Text.ReadOnly;
 using PolyglotTerror.Core;
 
 namespace PolyglotTerror.Game;
@@ -19,9 +17,9 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
     private readonly Configuration config;
     private readonly NameCatalog names;
-    private readonly Slot nameSlot = new();
-    private readonly Slot categorySlot = new();
-    private readonly Slot descriptionSlot = new();
+    private readonly TooltipSlot nameSlot = new();
+    private readonly TooltipSlot categorySlot = new();
+    private readonly TooltipSlot descriptionSlot = new();
 
     public ItemTooltipDecorator(Configuration config, NameCatalog names)
     {
@@ -56,25 +54,17 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
             return;
 
         if (config.ShowItemName)
-            Decorate(data, nameSlot, itemId, client.Name, static item => item.Name);
+            nameSlot.Decorate(data, itemId, client.Name, head => Compose(head, itemId, static item => item.Name));
 
         if (config.ShowItemCategory && client.Category is not null)
-            Decorate(data, categorySlot, itemId, client.Category, static item => item.Category);
+            categorySlot.Decorate(data, itemId, client.Category, head => Compose(head, itemId, static item => item.Category));
 
         if (config.ShowItemDescription && client.Description is not null)
-            Decorate(data, descriptionSlot, itemId, client.Description, static item => item.Description);
+            descriptionSlot.Decorate(data, itemId, client.Description, head => Compose(head, itemId, static item => item.Description));
     }
 
-    private void Decorate(StringArrayData* data, Slot slot, uint itemId, string clientText, Func<ItemNames, string?> pick)
+    private string? Compose(string head, uint itemId, Func<ItemNames, string?> pick)
     {
-        var expected = Strip(clientText);
-        if (expected.Length == 0)
-            return;
-
-        var index = Locate(data, slot, itemId, expected);
-        if (index < 0)
-            return;
-
         var candidates = new Dictionary<GameLanguage, string?>();
         foreach (var entry in config.Languages)
         {
@@ -82,96 +72,6 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
                 candidates[entry.Language] = pick(names.GetItem(entry.Language, itemId));
         }
 
-        // Compose against the stripped text so an HQ glyph cannot stop a language matching
-        // the line that is already there, then splice onto the untouched original bytes.
-        var head = Strip(slot.OriginalText);
-        var composed = LineComposer.Compose(head, candidates, config.Languages, config.HideDuplicates);
-        if (composed is null || !composed.StartsWith(head, StringComparison.Ordinal))
-            return;
-
-        // Only the tail is built from text; the game's own bytes are copied verbatim so any
-        // SeString payloads inside them survive the rewrite.
-        var tail = Encoding.UTF8.GetBytes(composed[head.Length..]);
-        var value = new byte[slot.Original.Length + tail.Length + 1];
-        slot.Original.CopyTo(value, 0);
-        tail.CopyTo(value, slot.Original.Length);
-
-        data->SetValue(index, value.AsSpan(), readBeforeWrite: false, managed: true, suppressUpdates: true);
-        slot.Written = value[..^1];
-    }
-
-    /// <summary>
-    /// Finds the entry by its value rather than by a fixed index, so a patch that reshuffles
-    /// the array leaves the tooltip undecorated instead of corrupted.
-    /// </summary>
-    private static int Locate(StringArrayData* data, Slot slot, uint itemId, string expected)
-    {
-        if (slot.Index >= 0 && slot.Index < data->Size && Claim(data, slot, slot.Index, itemId, expected))
-            return slot.Index;
-
-        for (var i = 0; i < data->Size; i++)
-        {
-            if (!Claim(data, slot, i, itemId, expected))
-                continue;
-
-            slot.Index = i;
-            return i;
-        }
-
-        slot.Index = -1;
-        return -1;
-    }
-
-    private static bool Claim(StringArrayData* data, Slot slot, int index, uint itemId, string expected)
-    {
-        var pointer = data->StringArray[index];
-        if (!pointer.HasValue)
-            return false;
-
-        var raw = pointer.AsSpan();
-
-        // An entry we already rewrote no longer holds the plain text, so recognise our own output.
-        if (slot.ItemId == itemId && slot.Written.Length > 0 && raw.SequenceEqual(slot.Written))
-            return true;
-
-        var text = new ReadOnlySeStringSpan(raw).ExtractText();
-        if (!string.Equals(Strip(text), expected, StringComparison.Ordinal))
-            return false;
-
-        slot.ItemId = itemId;
-        slot.Original = raw.ToArray();
-        slot.OriginalText = text;
-        slot.Written = [];
-        return true;
-    }
-
-    // High quality and collectable tooltips append an icon glyph after the name.
-    private static string Strip(string text)
-    {
-        var end = text.Length;
-        while (end > 0 && IsTrailingDecoration(text[end - 1]))
-            end--;
-
-        var start = 0;
-        while (start < end && char.IsWhiteSpace(text[start]))
-            start++;
-
-        return text[start..end];
-    }
-
-    private static bool IsTrailingDecoration(char value)
-        => char.IsWhiteSpace(value) || value is >= '\ue000' and <= '\uf8ff';
-
-    private sealed class Slot
-    {
-        public int Index = -1;
-
-        public uint ItemId;
-
-        public byte[] Original = [];
-
-        public string OriginalText = string.Empty;
-
-        public byte[] Written = [];
+        return LineComposer.Compose(head, candidates, config.Languages, config.HideDuplicates);
     }
 }

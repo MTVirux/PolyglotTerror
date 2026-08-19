@@ -29,6 +29,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
     private readonly ItemTooltipDecorator? tooltips;
+    private readonly ActionTooltipDecorator? actionTooltips;
 
     public Plugin()
     {
@@ -43,6 +44,9 @@ public sealed class Plugin : IDalamudPlugin
 
         if (Configuration.DecorateTooltip)
             tooltips = new ItemTooltipDecorator(Configuration, Names);
+
+        if (Configuration.DecorateActionTooltip)
+            actionTooltips = new ActionTooltipDecorator(Configuration, Names);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -66,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
         configWindow.Dispose();
         castBars.Dispose();
         tooltips?.Dispose();
+        actionTooltips?.Dispose();
     }
 
     private void RegisterCastBars()

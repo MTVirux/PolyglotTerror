@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Dalamud.Game;
+using Dalamud.Game.Gui;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using PolyglotTerror.Core;
@@ -9,6 +10,8 @@ using LuminaAction = Lumina.Excel.Sheets.Action;
 namespace PolyglotTerror.Game;
 
 public sealed record ItemNames(string? Name, string? Category, string? Description);
+
+public sealed record ActionNames(string? Name, string? Description);
 
 public sealed class NameCatalog
 {
@@ -22,6 +25,7 @@ public sealed class NameCatalog
 
     private readonly Dictionary<(GameLanguage, uint), ItemNames> itemMemo = new();
     private readonly Dictionary<(GameLanguage, uint), string?> actionMemo = new();
+    private readonly Dictionary<(GameLanguage, DetailKind, uint), ActionNames> detailMemo = new();
 
     public static GameLanguage FromClientLanguage(ClientLanguage language) => language switch
     {
@@ -54,11 +58,63 @@ public sealed class NameCatalog
         return resolved;
     }
 
+    /// <summary>
+    /// Resolves what an action tooltip shows. Action and trait descriptions live in a parallel
+    /// "transient" sheet at the same row id, not on the row the name comes from.
+    /// </summary>
+    public ActionNames GetActionDetail(GameLanguage language, DetailKind kind, uint actionId)
+    {
+        var key = (language, kind, actionId);
+        if (detailMemo.TryGetValue(key, out var cached))
+            return cached;
+
+        var resolved = ResolveActionDetail(language, kind, actionId);
+        detailMemo[key] = resolved;
+        return resolved;
+    }
+
     public void Clear()
     {
         itemMemo.Clear();
         actionMemo.Clear();
+        detailMemo.Clear();
     }
+
+    private static ActionNames ResolveActionDetail(GameLanguage language, DetailKind kind, uint actionId) => kind switch
+    {
+        DetailKind.Action => new ActionNames(
+            Row<LuminaAction>(language, actionId, static row => row.Name.ExtractText()),
+            Row<ActionTransient>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.Trait => new ActionNames(
+            Row<Trait>(language, actionId, static row => row.Name.ExtractText()),
+            Row<TraitTransient>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.GeneralAction => new ActionNames(
+            Row<GeneralAction>(language, actionId, static row => row.Name.ExtractText()),
+            Row<GeneralAction>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.MainCommand => new ActionNames(
+            Row<MainCommand>(language, actionId, static row => row.Name.ExtractText()),
+            Row<MainCommand>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.ExtraCommand => new ActionNames(
+            Row<ExtraCommand>(language, actionId, static row => row.Name.ExtractText()),
+            Row<ExtraCommand>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.BuddyAction => new ActionNames(
+            Row<BuddyAction>(language, actionId, static row => row.Name.ExtractText()),
+            Row<BuddyAction>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.Companion => new ActionNames(
+            Row<Companion>(language, actionId, static row => row.Singular.ExtractText()),
+            Row<CompanionTransient>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.Mount => new ActionNames(
+            Row<Mount>(language, actionId, static row => row.Singular.ExtractText()),
+            Row<MountTransient>(language, actionId, static row => row.Description.ExtractText())),
+        DetailKind.Ornament => new ActionNames(
+            Row<Ornament>(language, actionId, static row => row.Singular.ExtractText()),
+            null),
+        _ => new ActionNames(null, null),
+    };
+
+    private static string? Row<T>(GameLanguage language, uint rowId, Func<T, string?> pick)
+        where T : struct, IExcelRow<T>
+        => GetSheet<T>(language)?.GetRowOrDefault(rowId) is { } row ? Usable(pick(row)) : null;
 
     private static ItemNames ResolveItem(GameLanguage language, uint hoveredItemId)
     {
