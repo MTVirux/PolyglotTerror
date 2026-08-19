@@ -14,6 +14,7 @@ namespace PolyglotTerror.Game;
 public sealed unsafe class CastBarDecorator : IDisposable
 {
     public const string OverheadAddonName = "CastBarEnemy";
+    public const string PartyListAddonName = "_PartyList";
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -22,6 +23,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     private readonly Dictionary<string, uint> discoveredNodeIds = new();
     private readonly Dictionary<nint, string> lastWritten = new();
     private bool overheadRegistered;
+    private bool partyListRegistered;
 
     public CastBarDecorator(Configuration config, NameCatalog names)
     {
@@ -52,9 +54,23 @@ public sealed unsafe class CastBarDecorator : IDisposable
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostDraw, OverheadAddonName, OnOverheadDraw);
     }
 
+    /// <summary>
+    /// Registers the party list, whose cast text sits inside a component per member and so is
+    /// found by walking the tree rather than by node id.
+    /// </summary>
+    public void RegisterPartyList()
+    {
+        if (partyListRegistered)
+            return;
+
+        partyListRegistered = true;
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, PartyListAddonName, OnPartyListDraw);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostDraw, PartyListAddonName, OnPartyListDraw);
+    }
+
     public void Dispose()
     {
-        Plugin.AddonLifecycle.UnregisterListener(OnDraw, OnOverheadDraw);
+        Plugin.AddonLifecycle.UnregisterListener(OnDraw, OnOverheadDraw, OnPartyListDraw);
         surfaces.Clear();
         discoveredNodeIds.Clear();
         lastWritten.Clear();
@@ -107,6 +123,60 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
             Decorate(node, actionId, LanguagePolicy.FullStack);
         }
+    }
+
+    private void OnPartyListDraw(AddonEvent type, AddonArgs args)
+    {
+        var addon = (AtkUnitBase*)(nint)args.Addon;
+        if (addon == null || !addon->IsVisible)
+            return;
+
+        foreach (var member in Plugin.PartyList)
+        {
+            if (member.GameObject is not IBattleChara { IsCasting: true } caster)
+                continue;
+
+            var actionId = caster.CastActionId;
+            var clientName = ClientActionName(actionId);
+            if (clientName == null)
+                continue;
+
+            var node = FindTextNode(addon->UldManager, clientName);
+            if (node != null)
+                Decorate(node, actionId, LanguagePolicy.PrimaryOnly);
+        }
+    }
+
+    private AtkTextNode* FindTextNode(AtkUldManager manager, string clientName)
+    {
+        for (var i = 0; i < manager.NodeListCount; i++)
+        {
+            var node = manager.NodeList[i];
+            if (node == null)
+                continue;
+
+            if (node->Type == NodeType.Text)
+            {
+                var text = (AtkTextNode*)node;
+                if (HoldsActionName(text, clientName))
+                    return text;
+
+                continue;
+            }
+
+            if ((ushort)node->Type < 1000)
+                continue;
+
+            var component = ((AtkComponentNode*)node)->Component;
+            if (component == null)
+                continue;
+
+            var found = FindTextNode(component->UldManager, clientName);
+            if (found != null)
+                return found;
+        }
+
+        return null;
     }
 
     private void Decorate(AtkTextNode* node, uint actionId, LanguagePolicy policy)

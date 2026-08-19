@@ -82,6 +82,9 @@ public sealed class Plugin : IDalamudPlugin
 
         if (Configuration.DecorateOverheadBars)
             castBars.RegisterOverheadBars();
+
+        if (Configuration.DecoratePartyList)
+            castBars.RegisterPartyList();
     }
 
     private void OpenConfig() => configWindow.IsOpen = true;
