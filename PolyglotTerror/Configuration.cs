@@ -8,7 +8,9 @@ namespace PolyglotTerror;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public const int DefaultCastBarHeight = 44;
+    public const int MinCastBarTextOffset = -40;
+
+    public const int MaxCastBarTextOffset = 40;
 
     public int Version { get; set; } = 1;
 
@@ -44,7 +46,10 @@ public class Configuration : IPluginConfiguration
 
     public bool HideDuplicates { get; set; } = true;
 
-    public int CastBarHeight { get; set; } = DefaultCastBarHeight;
+    /// <summary>
+    /// Moves the cast bar text up or down without resizing the bar itself.
+    /// </summary>
+    public int CastBarTextOffset { get; set; }
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or

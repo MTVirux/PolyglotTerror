@@ -22,6 +22,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     private readonly Dictionary<string, CastBarSurface> surfaces = new();
     private readonly Dictionary<string, uint> discoveredNodeIds = new();
     private readonly Dictionary<nint, string> lastWritten = new();
+    private readonly Dictionary<nint, float> baseTextY = new();
     private bool overheadRegistered;
     private bool partyListRegistered;
 
@@ -74,6 +75,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
         surfaces.Clear();
         discoveredNodeIds.Clear();
         lastWritten.Clear();
+        baseTextY.Clear();
         writer.Dispose();
     }
 
@@ -204,7 +206,34 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
         Write(node, composed);
         node->TextFlags |= TextFlags.MultiLine | TextFlags.WordWrap;
-        node->AtkResNode.SetHeight((ushort)config.CastBarHeight);
+        FitLines(node, composed);
+        OffsetText(node);
+    }
+
+    /// <summary>
+    /// Grows the node to fit every line, since the game sizes it for the single line it expects.
+    /// </summary>
+    private static void FitLines(AtkTextNode* node, string composed)
+    {
+        var lines = composed.AsSpan().Count(LineComposer.Separator) + 1;
+        var spacing = node->LineSpacing > 0 ? node->LineSpacing : node->FontSize + 4;
+        node->AtkResNode.SetHeight((ushort)(lines * spacing));
+    }
+
+    /// <summary>
+    /// Moves the text by the configured offset. The first position we see is kept as the anchor,
+    /// so the offset stays absolute instead of piling up frame after frame.
+    /// </summary>
+    private void OffsetText(AtkTextNode* node)
+    {
+        var key = (nint)node;
+        if (!baseTextY.TryGetValue(key, out var anchor))
+        {
+            anchor = node->AtkResNode.Y;
+            baseTextY[key] = anchor;
+        }
+
+        node->AtkResNode.SetYFloat(anchor + config.CastBarTextOffset);
     }
 
     private static IBattleChara? ResolveCaster(CastSource source) => source switch

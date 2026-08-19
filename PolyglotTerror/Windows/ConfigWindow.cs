@@ -107,12 +107,18 @@ public sealed class ConfigWindow : Window, IDisposable
             configuration.HideDuplicates,
             value => configuration.HideDuplicates = value);
 
-        var height = configuration.CastBarHeight;
-        if (ImGui.SliderInt("Cast bar height", ref height, 30, 100))
+        var offset = configuration.CastBarTextOffset;
+        if (ImGui.SliderInt(
+                "Cast bar text offset",
+                ref offset,
+                Configuration.MinCastBarTextOffset,
+                Configuration.MaxCastBarTextOffset))
         {
-            configuration.CastBarHeight = height;
+            configuration.CastBarTextOffset = offset;
             Apply();
         }
+
+        ImGui.TextDisabled("Moves the cast bar text up or down. The bar itself stays where it is.");
     }
 
     private void Swap(int a, int b)
