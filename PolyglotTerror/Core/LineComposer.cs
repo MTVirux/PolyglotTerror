@@ -32,7 +32,7 @@ public static class LineComposer
             if (string.IsNullOrEmpty(text))
                 return;
 
-            if (hideDuplicates && lines.Contains(text, StringComparer.Ordinal))
+            if (hideDuplicates && Contains(lines, text))
                 return;
 
             lines.Add(text);
@@ -49,6 +49,17 @@ public static class LineComposer
         }
 
         return lines;
+    }
+
+    private static bool Contains(List<string> lines, string text)
+    {
+        foreach (var line in lines)
+        {
+            if (string.Equals(line, text, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
