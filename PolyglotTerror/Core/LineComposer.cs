@@ -63,6 +63,19 @@ public static class LineComposer
     }
 
     /// <summary>
+    /// Composes without an original line to keep, so a single enabled language is still worth
+    /// showing. Returns null only when no name resolved at all.
+    /// </summary>
+    public static string? ComposeStandalone(
+        IReadOnlyDictionary<GameLanguage, string?> names,
+        IReadOnlyList<LanguageEntry> order,
+        bool hideDuplicates)
+    {
+        var lines = BuildLines(null, names, order, hideDuplicates);
+        return lines.Count > 0 ? string.Join(Separator, lines) : null;
+    }
+
+    /// <summary>
     /// Returns null when there is nothing to add, which every caller reads as
     /// "leave the game's own text alone".
     /// </summary>

@@ -200,13 +200,17 @@ public sealed unsafe class CastBarDecorator : IDisposable
                 resolved[entry.Language] = names.GetAction(entry.Language, actionId);
         }
 
-        var composed = LineComposer.Compose(null, resolved, config.Languages, config.HideDuplicates);
+        var composed = LineComposer.ComposeStandalone(resolved, config.Languages, config.HideDuplicates);
         if (composed == null)
             return;
 
         Write(node, composed);
-        node->TextFlags |= TextFlags.MultiLine | TextFlags.WordWrap;
-        FitLines(node, composed);
+        if (composed.Contains(LineComposer.Separator, StringComparison.Ordinal))
+        {
+            node->TextFlags |= TextFlags.MultiLine | TextFlags.WordWrap;
+            FitLines(node, composed);
+        }
+
         OffsetText(node);
     }
 

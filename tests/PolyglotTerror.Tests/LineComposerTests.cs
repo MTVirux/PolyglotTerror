@@ -87,6 +87,32 @@ public class LineComposerTests
     }
 
     [Fact]
+    public void ComposeStandalone_keeps_a_single_enabled_language()
+    {
+        var order = new LanguageEntry[] { new(GameLanguage.Japanese, true), new(GameLanguage.German, false) };
+
+        var result = LineComposer.ComposeStandalone(Names(ja: "ファイジャ", de: "Feuga"), order, hideDuplicates: true);
+
+        Assert.Equal("ファイジャ", result);
+    }
+
+    [Fact]
+    public void ComposeStandalone_joins_every_enabled_language()
+    {
+        var result = LineComposer.ComposeStandalone(Names(ja: "ファイジャ", de: "Feuga"), JaThenDe, hideDuplicates: true);
+
+        Assert.Equal("ファイジャ\nFeuga", result);
+    }
+
+    [Fact]
+    public void ComposeStandalone_returns_null_when_no_name_resolves()
+    {
+        var result = LineComposer.ComposeStandalone(Names(), JaThenDe, hideDuplicates: true);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public void Primary_is_the_first_enabled_language()
     {
         var order = new LanguageEntry[]
