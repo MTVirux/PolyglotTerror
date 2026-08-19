@@ -143,7 +143,7 @@ public sealed unsafe class TooltipHeaderExpander
     private static void LogMissingNode(AtkUnitBase* unit, string appendedText)
     {
         Plugin.Log.Information(
-            $"Header expand: no node ends with the appended tail ({appendedText.Length} chars): \"{appendedText}\"");
+            $"Header expand: no node contains the appended tail ({appendedText.Length} chars): \"{appendedText}\"");
 
         var count = unit->UldManager.NodeListCount;
         for (var i = 0; i < count; i++)
@@ -167,8 +167,10 @@ public sealed unsafe class TooltipHeaderExpander
             if (node == null || node->Type != NodeType.Text)
                 continue;
 
+            // Contains rather than EndsWith: other plugins append their own payloads to tooltip
+            // entries after we have written ours, which would push our lines off the end.
             var text = (AtkTextNode*)node;
-            if (text->NodeText.ToString().EndsWith(appendedText, StringComparison.Ordinal))
+            if (text->NodeText.ToString().Contains(appendedText, StringComparison.Ordinal))
                 return text;
         }
 
