@@ -46,7 +46,9 @@ public sealed unsafe class TooltipHeaderExpander
             return;
         }
 
+        forensics.Write("expand: enter");
         RestoreTouched(unit);
+        forensics.Write($"expand: restored, live={live.Count}");
 
         if (string.IsNullOrEmpty(appendedText))
         {
@@ -57,6 +59,7 @@ public sealed unsafe class TooltipHeaderExpander
         }
 
         var node = FindNode(unit, appendedText);
+        forensics.Write($"expand: node={(node == null ? "none" : node->AtkResNode.NodeId.ToString())}");
         if (node == null)
         {
             if (log)
@@ -82,7 +85,9 @@ public sealed unsafe class TooltipHeaderExpander
         // measurement comes back clipped to the node.
         ushort drawWidth = 0;
         ushort drawHeight = 0;
+        forensics.Write("expand: measuring");
         node->GetTextDrawSize(&drawWidth, &drawHeight);
+        forensics.Write("expand: measured");
 
         var lines = Math.Max(CountLines(node->NodeText.ToString()), Lines(appendedText).Length + 1);
         var content = Math.Max(drawHeight, lines * lineSpacing);
@@ -107,6 +112,8 @@ public sealed unsafe class TooltipHeaderExpander
 
         if (delta > 0)
             GrowAncestors(unit, (AtkResNode*)node, delta);
+
+        forensics.Write("expand: grown");
 
         if (topOffset != 0)
         {

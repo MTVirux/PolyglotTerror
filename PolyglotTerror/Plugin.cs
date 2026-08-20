@@ -34,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ItemTooltipDecorator itemTooltips;
     private readonly ActionTooltipDecorator actionTooltips;
     private readonly KamiTooltipProbe kamiProbe;
+    private bool kamiStarted;
 
     public Plugin()
     {
@@ -49,10 +50,10 @@ public sealed class Plugin : IDalamudPlugin
         RegisterCastBars();
 
         itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector, forensics);
-        actionTooltips = new ActionTooltipDecorator(Configuration, Names);
+        actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
 
-        // THROWAWAY SPIKE - "/polyglot kami" toggles it. Off by default.
-        KamiToolKitLibrary.Initialize(PluginInterface);
+        // THROWAWAY SPIKE - "/polyglot kami" toggles it. Off by default, and KamiToolKit is not
+        // started until then so it cannot affect anything while the spike is off.
         kamiProbe = new KamiTooltipProbe(Configuration, Names);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -79,7 +80,9 @@ public sealed class Plugin : IDalamudPlugin
         itemTooltips.Dispose();
         actionTooltips.Dispose();
         kamiProbe.Dispose();
-        KamiToolKitLibrary.Dispose();
+
+        if (kamiStarted)
+            KamiToolKitLibrary.Dispose();
         forensics.Dispose();
     }
 
@@ -118,6 +121,12 @@ public sealed class Plugin : IDalamudPlugin
             var wanted = !kamiProbe.Enabled;
             Framework.RunOnFrameworkThread(() =>
             {
+                if (wanted && !kamiStarted)
+                {
+                    KamiToolKitLibrary.Initialize(PluginInterface);
+                    kamiStarted = true;
+                }
+
                 kamiProbe.SetEnabled(wanted);
                 kamiProbe.ArmLog();
 

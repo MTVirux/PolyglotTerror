@@ -19,9 +19,10 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private readonly Configuration config;
     private readonly NameCatalog names;
     private readonly AddonInspector inspector;
-    private readonly TooltipSlot nameSlot = new();
-    private readonly TooltipSlot categorySlot = new();
-    private readonly TooltipSlot descriptionSlot = new();
+    private readonly TooltipForensics forensics;
+    private readonly TooltipSlot nameSlot;
+    private readonly TooltipSlot categorySlot;
+    private readonly TooltipSlot descriptionSlot;
     private readonly TooltipHeaderExpander expander;
     private DumpStage dump;
 
@@ -30,6 +31,10 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         this.config = config;
         this.names = names;
         this.inspector = inspector;
+        this.forensics = forensics;
+        nameSlot = new TooltipSlot(forensics, "name");
+        categorySlot = new TooltipSlot(forensics, "category");
+        descriptionSlot = new TooltipSlot(forensics, "description");
         expander = new TooltipHeaderExpander(config, forensics);
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
@@ -67,6 +72,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
             return;
 
         var itemId = (uint)Plugin.GameGui.HoveredItem;
+        forensics.Write($"pre: item={itemId}");
         if (itemId == 0)
             return;
 
@@ -79,6 +85,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
             return;
 
         var client = names.GetItem(NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage), itemId);
+        forensics.Write($"pre: client name={(client.Name is null ? "null" : client.Name.Length.ToString())}");
         if (client.Name is null)
             return;
 
@@ -97,6 +104,8 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         if (config.ShowItemDescription && client.Description is not null)
             descriptionSlot.Decorate(data, itemId, client.Description, head => Compose(head, itemId, static item => item.Description));
 
+        forensics.Write("pre: done");
+
         if (dump != DumpStage.Armed)
             return;
 
@@ -113,11 +122,14 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     {
         var addon = (AtkUnitBase*)args.Addon.Address;
         var logging = dump == DumpStage.AwaitingLayout;
+        forensics.Write("post: begin");
 
         if (Suspended || !config.DecorateTooltip || !config.ExpandTooltipName)
             expander.Restore(addon);
         else
             expander.Expand(addon, nameSlot.AppendedText, logging);
+
+        forensics.Write("post: done");
 
         if (!logging)
             return;

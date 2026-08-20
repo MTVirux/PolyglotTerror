@@ -19,13 +19,15 @@ public sealed unsafe class ActionTooltipDecorator : IDisposable
 
     private readonly Configuration config;
     private readonly NameCatalog names;
-    private readonly TooltipSlot nameSlot = new();
-    private readonly TooltipSlot descriptionSlot = new();
+    private readonly TooltipSlot nameSlot;
+    private readonly TooltipSlot descriptionSlot;
 
-    public ActionTooltipDecorator(Configuration config, NameCatalog names)
+    public ActionTooltipDecorator(Configuration config, NameCatalog names, TooltipForensics forensics)
     {
         this.config = config;
         this.names = names;
+        nameSlot = new TooltipSlot(forensics, "action name");
+        descriptionSlot = new TooltipSlot(forensics, "action description");
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
     }
