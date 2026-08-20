@@ -62,7 +62,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         {
             Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnRequestedUpdate);
             Plugin.Framework.Update -= OnFrameworkUpdate;
-            Hide();
+            CloseNow();
         }
     }
 
@@ -77,7 +77,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         {
             Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnRequestedUpdate);
             Plugin.Framework.Update -= OnFrameworkUpdate;
-            Hide();
+            CloseNow();
         }
 
         panel.Dispose();
@@ -162,6 +162,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
         panel.SetWindowSize(size);
         panel.SetWindowPosition(Beside(tooltip, scale, size, config.TooltipPanelGap));
+        panel.SuppressInput();
+        panel.SetVisible(true);
     }
 
     /// <summary>
@@ -181,7 +183,9 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         return new Vector2(right, tooltip->Y);
     }
 
-    private void Hide()
+    private void Hide() => panel.SetVisible(false);
+
+    private void CloseNow()
     {
         if (panel.IsOpen)
             panel.Close();

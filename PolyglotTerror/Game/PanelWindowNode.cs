@@ -25,6 +25,10 @@ public sealed class PanelWindowNode : WindowNode
         DividingLineNode.IsVisible = false;
         TitleNode.IsVisible = false;
         SubtitleNode.IsVisible = false;
+
+        // Dragging the panel by a header that is not drawn would be a surprise, and its collision
+        // is part of what steals the cursor from the item underneath.
+        HeaderCollisionNode.IsVisible = false;
     }
 
     public override float HeaderHeight => 0f;

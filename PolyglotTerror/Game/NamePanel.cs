@@ -48,6 +48,22 @@ public sealed unsafe class NamePanel : NativeAddon
             text.String = pending;
     }
 
+    /// <summary>
+    /// Shows or hides the panel without opening or closing it.
+    /// </summary>
+    /// <remarks>
+    /// Opening and closing every time the tooltip comes and goes churns the addon's lifetime many
+    /// times a second, so it stays open and only its root node is toggled.
+    /// </remarks>
+    public void SetVisible(bool value)
+    {
+        if (IsOpen)
+            RootNode.IsVisible = value;
+    }
+
+    /// <summary>Re-applies the hit testing opt-out, which the window restores when it is resized.</summary>
+    public void SuppressInput() => MakeNonInteractive(this);
+
     protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> values)
     {
         text = new TextNode
@@ -65,5 +81,34 @@ public sealed unsafe class NamePanel : NativeAddon
 
         text.RemoveNodeFlags(NodeFlags.RespondToMouse, NodeFlags.EmitsEvents, NodeFlags.HasCollision);
         AddNode(text);
+
+        MakeNonInteractive(addon);
+    }
+
+    /// <summary>
+    /// Takes the panel out of the game's hit testing.
+    /// </summary>
+    /// <remarks>
+    /// It sits right beside the cursor, and a window that answers the mouse takes the hover away
+    /// from the inventory slot under it. The game then closes the tooltip, which hides this panel,
+    /// which gives the slot the hover back - the tooltip flickers on and off for as long as the
+    /// cursor is there. Nothing here is clickable, so it has no business being hit tested.
+    /// </remarks>
+    private static void MakeNonInteractive(AtkUnitBase* addon)
+    {
+        const NodeFlags interactive = NodeFlags.RespondToMouse | NodeFlags.EmitsEvents | NodeFlags.HasCollision;
+
+        if (addon == null)
+            return;
+
+        if (addon->RootNode != null)
+            addon->RootNode->NodeFlags &= ~interactive;
+
+        for (var i = 0; i < addon->CollisionNodeListCount; i++)
+        {
+            var collision = addon->CollisionNodeList[i];
+            if (collision != null)
+                collision->NodeFlags &= ~interactive;
+        }
     }
 }
