@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit.BaseTypes;
+using KamiToolKit.Enums;
 using KamiToolKit.Nodes;
 
 namespace PolyglotTerror.Game;
@@ -34,6 +35,10 @@ public sealed unsafe class NamePanel : NativeAddon
         OpenWindowSoundEffectId = 0;
         Size = new Vector2(280f, 120f);
         CreateWindowNode = () => new PanelWindowNode();
+
+        // A default window opens behind the inventory and shop menus the tooltip sits over, which
+        // leaves the panel unreadable exactly when it is wanted.
+        DepthLayer = OverlayLayer.AboveUserInterface.DepthLayer;
     }
 
     /// <summary>The size this panel wants for the lines it is holding.</summary>
