@@ -58,10 +58,10 @@ public class Configuration : IPluginConfiguration
     public int CastBarTextOffset { get; set; }
 
     /// <summary>
-    /// Tooltip resizing is disabled for now: the settings below are kept so saved configs survive,
-    /// but nothing reads them and TooltipHeaderExpander is not wired up.
+    /// Stretches a tooltip's name block to fit the extra lines. Without it they render over the
+    /// row beneath.
     /// </summary>
-    public bool ExpandTooltipName { get; set; }
+    public bool ExpandTooltipName { get; set; } = true;
 
     /// <summary>
     /// Extra room added under the last line of a tooltip's name block.

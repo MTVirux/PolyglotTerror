@@ -30,6 +30,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AddonInspector inspector = new();
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
+    private readonly ItemTooltipDecorator itemTooltips;
+    private readonly ActionTooltipDecorator actionTooltips;
     private readonly KamiTooltipProbe kamiProbe;
 
     public Plugin()
@@ -43,9 +45,8 @@ public sealed class Plugin : IDalamudPlugin
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        // Tooltip decoration is work in progress and deliberately not wired up. The game gives a
-        // tooltip's name a fixed two-line region, so extra lines render over the row beneath it and
-        // making room means relaying out the addon. Its settings stay visible but inert.
+        itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector);
+        actionTooltips = new ActionTooltipDecorator(Configuration, Names);
 
         // THROWAWAY SPIKE - "/polyglot kami" toggles it. Off by default.
         KamiToolKitLibrary.Initialize(PluginInterface);
@@ -53,7 +54,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot kami\" toggles the KamiToolKit tooltip spike.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip, \"/polyglot kami\" toggles the KamiToolKit tooltip spike.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -72,6 +73,8 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
         castBars.Dispose();
+        itemTooltips.Dispose();
+        actionTooltips.Dispose();
         kamiProbe.Dispose();
         KamiToolKitLibrary.Dispose();
     }
@@ -113,6 +116,9 @@ public sealed class Plugin : IDalamudPlugin
             {
                 kamiProbe.SetEnabled(wanted);
                 kamiProbe.ArmLog();
+
+                // Both would add the same names, so only one owns the tooltip at a time.
+                itemTooltips.Suspended = wanted;
                 Log.Information($"Kami tooltip spike: {(wanted ? "on" : "off")}");
             });
             return;
@@ -120,7 +126,8 @@ public sealed class Plugin : IDalamudPlugin
 
         if (parts.Length == 2 && parts[0] == "dump" && parts[1] == "item")
         {
-            Log.Information("Tooltip decoration is work in progress and switched off, so there is nothing to dump.");
+            itemTooltips.ArmDump();
+            Log.Information("Armed - hover an item to dump its tooltip.");
             return;
         }
 

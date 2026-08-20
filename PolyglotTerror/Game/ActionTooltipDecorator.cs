@@ -9,7 +9,6 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// WORK IN PROGRESS - not wired up, same as <see cref="ItemTooltipDecorator"/>.
 /// The action tooltip counterpart of <see cref="ItemTooltipDecorator"/>. Covers everything the
 /// game routes through ActionDetail: combat actions and traits, general and main commands,
 /// chocobo actions, mounts, minions and fashion accessories.

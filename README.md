@@ -33,9 +33,9 @@ The party list shows the primary language only. Everything else shows the full s
 
 ## Not finished yet
 
-Item and action tooltips are work in progress and currently do nothing. The game gives a tooltip's
-name a fixed two-line region, so extra lines render over the row beneath it, and making room means
-relaying out the addon. Their settings are still listed but greyed out.
+Tooltip name expansion is rough. The game gives a tooltip's name a fixed two-line region, so extra
+lines need the header stretched to make room. Turn "Make room for the extra name lines" off if a
+tooltip comes out mangled, and use the two sliders under it to nudge the spacing.
 
 ## Languages
 
