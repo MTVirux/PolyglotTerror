@@ -55,7 +55,7 @@ public sealed class Plugin : IDalamudPlugin
 
         actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
 
-        itemNames = new ItemTooltipNames(Configuration, Names, forensics);
+        itemNames = new ItemTooltipNames(Configuration, Names, forensics, inspector);
 
         // Plugin construction is not on the framework thread, and KamiToolKit asserts on it the
         // moment it touches an addon.
@@ -63,7 +63,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot kami\" toggles the tooltip name panel.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip's, \"/polyglot kami\" toggles the tooltip name panel.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -115,6 +115,13 @@ public sealed class Plugin : IDalamudPlugin
         if (parts.Length == 2 && parts[0] == "nodes")
         {
             inspector.DumpNodes(parts[1]);
+            return;
+        }
+
+        if (parts.Length == 2 && parts[0] == "dump" && parts[1] == "item")
+        {
+            itemNames.ArmDump();
+            Chat.Print("PolyglotTerror: armed - hover an item to dump its tooltip.");
             return;
         }
 

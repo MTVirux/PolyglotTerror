@@ -29,21 +29,24 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private readonly Configuration config;
     private readonly NameCatalog names;
     private readonly TooltipForensics forensics;
+    private readonly AddonInspector inspector;
     private readonly List<NamePanel> panels = [];
 
     private List<Section> sections = [];
     private GameLanguage? selected;
     private string state = string.Empty;
     private int idleFrames;
+    private bool dumpArmed;
     private bool enabled;
     private bool disposed;
     private bool altWasHeld;
 
-    public ItemTooltipNames(Configuration config, NameCatalog names, TooltipForensics forensics)
+    public ItemTooltipNames(Configuration config, NameCatalog names, TooltipForensics forensics, AddonInspector inspector)
     {
         this.config = config;
         this.names = names;
         this.forensics = forensics;
+        this.inspector = inspector;
 
         // One per language, made up front so the column never allocates an addon mid-hover.
         for (var i = 0; i < Enum.GetValues<GameLanguage>().Length; i++)
@@ -51,6 +54,12 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     }
 
     public bool Enabled => enabled;
+
+    /// <summary>
+    /// Dumps the next tooltip's nodes. Typing a command dismisses the tooltip, so it has to be armed
+    /// first and fire on the next hover.
+    /// </summary>
+    public void ArmDump() => dumpArmed = true;
 
     /// <summary>
     /// Must be called on the framework thread - KamiToolKit asserts on it whenever it opens or
@@ -100,6 +109,12 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private void OnRequestedUpdate(AddonEvent type, AddonArgs args)
     {
         Rebuild();
+
+        if (!dumpArmed)
+            return;
+
+        dumpArmed = false;
+        inspector.DumpNodes(AddonName, (AtkUnitBase*)args.Addon.Address);
     }
 
     private void Rebuild()

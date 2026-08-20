@@ -51,9 +51,56 @@ public sealed unsafe class AddonInspector
             }
             else
             {
-                Plugin.Log.Information($"  [{i}] id={node->NodeId} {node->Type} visible={visible} {box}");
+                Plugin.Log.Information(
+                    $"  [{i}] id={node->NodeId} {node->Type} visible={visible} {box}{Texture(node)}");
             }
         }
+    }
+
+    /// <summary>
+    /// The texture a nine grid or image draws, so its look can be reproduced on a node of our own
+    /// rather than guessed at from a path that may not exist.
+    /// </summary>
+    private static string Texture(AtkResNode* node)
+    {
+        AtkUldPartsList* list;
+        uint partId;
+        var offsets = string.Empty;
+
+        switch (node->Type)
+        {
+            case NodeType.NineGrid:
+                var grid = (AtkNineGridNode*)node;
+                list = grid->PartsList;
+                partId = grid->PartId;
+                offsets = $" offsets={grid->TopOffset},{grid->RightOffset},{grid->BottomOffset},{grid->LeftOffset}";
+                break;
+
+            case NodeType.Image:
+                var image = (AtkImageNode*)node;
+                list = image->PartsList;
+                partId = image->PartId;
+                break;
+
+            default:
+                return string.Empty;
+        }
+
+        if (list == null || partId >= list->PartCount)
+            return offsets;
+
+        var part = &list->Parts[partId];
+        var rect = $" part={part->U},{part->V} {part->Width}x{part->Height}";
+        var asset = part->UldAsset;
+        if (asset == null)
+            return offsets + rect;
+
+        var resource = asset->AtkTexture.Resource;
+        if (resource == null || resource->TexFileResourceHandle == null)
+            return offsets + rect;
+
+        var path = resource->TexFileResourceHandle->ResourceHandle.FileName.ToString();
+        return $"{offsets}{rect} tex=\"{path}\"";
     }
 
     /// <summary>
