@@ -65,7 +65,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         {
             Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnRequestedUpdate);
             Plugin.Framework.Update -= OnFrameworkUpdate;
-            CloseNow();
+            Hide();
         }
     }
 
@@ -80,7 +80,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         {
             Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnRequestedUpdate);
             Plugin.Framework.Update -= OnFrameworkUpdate;
-            CloseNow();
+            Hide();
         }
 
         panel.Dispose();
@@ -219,7 +219,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         panel.SetWindowSize(size);
         panel.SetWindowPosition(Beside(tooltip, scale, size, config.TooltipPanelGap));
         panel.SuppressInput();
-        panel.SetVisible(true);
     }
 
     /// <summary>
@@ -239,9 +238,12 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         return new Vector2(right, tooltip->Y);
     }
 
-    private void Hide() => panel.SetVisible(false);
-
-    private void CloseNow()
+    /// <summary>
+    /// Closes the panel rather than just hiding it. An addon that is merely invisible is still in
+    /// the game's hit testing, and this one opens above the interface, so leaving it around swallows
+    /// mouseovers for everything beneath it.
+    /// </summary>
+    private void Hide()
     {
         if (panel.IsOpen)
             panel.Close();
