@@ -13,37 +13,42 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// THROWAWAY SPIKE - not part of the plugin's design. Answers whether KamiToolKit gives better
-/// control over the item tooltip than rewriting the game's own strings does.
+/// Shows an item's other-language names in a text node of our own, parked under everything the game
+/// drew, and grows the tooltip frame to cover it.
 /// </summary>
 /// <remarks>
-/// Instead of appending lines to the name string and then making room inside the header, this owns
-/// a text node parked under everything the game drew and grows the window to cover it. Nothing the
-/// game laid out moves, so the only geometry we touch is the outer frame.
-/// KamiToolKit's controller handles the node's lifetime; the text still comes from Dalamud's
-/// RequestedUpdate event, which the controller has no equivalent of.
+/// This is the only thing in the plugin that changes a tooltip's structure. Extra lines cannot go
+/// into the name the game draws: it gets a fixed two-line region, so making room there means
+/// relaying the header out, moving every row beneath it and stretching each frame around them.
+/// Appending our own node instead leaves the game's layout untouched, and the only geometry we
+/// write is the height of the frame that wraps it.
+///
+/// KamiToolKit owns the node - creation, attachment and teardown - so nothing here allocates or
+/// frees game memory. The frame nodes are re-derived from the addon on every pass rather than
+/// remembered, because a pointer kept from the last tooltip can name memory the game has freed.
 /// </remarks>
-public sealed unsafe class KamiTooltipProbe : IDisposable
+public sealed unsafe class ItemTooltipNameNode : IDisposable
 {
     private const string AddonName = "ItemDetail";
-    private const uint ProbeNodeId = 900_501;
+    private const uint NameNodeId = 900_501;
     private const float SidePadding = 16f;
     private const float BottomPadding = 8f;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
+    private readonly TooltipForensics forensics;
     private readonly AddonController<AddonItemDetail> controller;
-    private readonly Dictionary<nint, Growth> grown = new();
+    private readonly List<Growth> grown = new();
 
     private TextNode? node;
     private bool enabled;
     private bool disposed;
-    private bool verbose;
 
-    public KamiTooltipProbe(Configuration config, NameCatalog names)
+    public ItemTooltipNameNode(Configuration config, NameCatalog names, TooltipForensics forensics)
     {
         this.config = config;
         this.names = names;
+        this.forensics = forensics;
 
         controller = new AddonController<AddonItemDetail>
         {
@@ -52,8 +57,6 @@ public sealed unsafe class KamiTooltipProbe : IDisposable
             OnFinalize = HandleFinalize,
         };
     }
-
-    public bool Enabled => enabled;
 
     /// <summary>
     /// Must be called on the framework thread - KamiToolKit asserts on it whenever it touches
@@ -70,8 +73,6 @@ public sealed unsafe class KamiTooltipProbe : IDisposable
         {
             controller.Enable();
 
-            // The tooltip is normally closed when the toggle is flipped, so there is usually
-            // nothing live to replay setup against, but cover the case where it is open.
             var live = LiveAddon();
             if (live != null && node == null)
                 HandleSetup(live);
@@ -85,9 +86,6 @@ public sealed unsafe class KamiTooltipProbe : IDisposable
             controller.Disable();
         }
     }
-
-    /// <summary>Logs the geometry of the next tooltip pass.</summary>
-    public void ArmLog() => verbose = true;
 
     public void Dispose()
     {
@@ -124,7 +122,7 @@ public sealed unsafe class KamiTooltipProbe : IDisposable
 
         var text = new TextNode
         {
-            NodeId = ProbeNodeId,
+            NodeId = NameNodeId,
             Size = new Vector2(addon->RootNode->Width - (SidePadding * 2f), 0f),
             FontSize = 12,
             AlignmentType = AlignmentType.TopLeft,
@@ -138,12 +136,14 @@ public sealed unsafe class KamiTooltipProbe : IDisposable
         text.RemoveNodeFlags(NodeFlags.RespondToMouse, NodeFlags.EmitsEvents, NodeFlags.HasCollision);
         text.AttachNode(addon->RootNode, NodePosition.AsLastChild);
         node = text;
+
+        forensics.Write("name node: attached");
     }
 
     private void HandleFinalize(AddonItemDetail* addon)
     {
-        // The addon is going away, so its own nodes must not be left carrying our sizes.
-        Restore();
+        // The addon is going away, so its frame must not be left carrying our height.
+        Shrink(addon);
         DropNode();
     }
 
@@ -157,109 +157,129 @@ public sealed unsafe class KamiTooltipProbe : IDisposable
     private void HandleRequestedUpdate(AddonEvent type, AddonArgs args)
     {
         var addon = (AddonItemDetail*)args.Addon.Address;
-        if (addon == null || node == null)
+        if (addon == null || node == null || addon->RootNode == null)
             return;
 
-        Restore();
+        forensics.Write("name node: begin");
+        Shrink(addon);
 
         var lines = ComposeLines();
         if (lines.Length == 0)
         {
             node.IsVisible = false;
+            forensics.Write("name node: nothing to show");
             return;
         }
 
         var root = addon->RootNode;
-        if (root == null)
-            return;
 
         // Everything the game drew ends at the root's height, so that is where ours starts.
         var contentBottom = root->Height;
+        var width = root->Width - (SidePadding * 2f);
 
         node.String = string.Join('\n', lines);
-        node.Size = new Vector2(root->Width - (SidePadding * 2f), 0f);
+        node.Size = new Vector2(width, 0f);
 
         var drawn = node.GetTextDrawSize(false);
-        var height = drawn.Y + BottomPadding;
+        var delta = (int)(drawn.Y + BottomPadding + config.TooltipNameExtraSpace);
 
-        node.Size = new Vector2(root->Width - (SidePadding * 2f), drawn.Y);
+        node.Size = new Vector2(width, drawn.Y);
         node.Position = new Vector2(SidePadding, contentBottom - BottomPadding);
         node.IsVisible = true;
 
-        Grow(root, (int)height);
-        Grow((AtkResNode*)addon->WindowNode, (int)height);
-        Grow((AtkResNode*)addon->WindowCollisionNode, (int)height);
-        GrowWindowBackground(addon, (int)height);
+        forensics.Write($"name node: lines={lines.Length} drawn={drawn.X}x{drawn.Y} bottom={contentBottom} delta={delta}");
 
-        Record();
+        Grow(addon, delta);
 
-        if (verbose)
-        {
-            verbose = false;
-            Plugin.Log.Information(
-                $"Kami probe: lines={lines.Length} drawn={drawn.X}x{drawn.Y} contentBottom={contentBottom} " +
-                $"grow={height} root={root->Height}h window={(addon->WindowNode == null ? 0 : addon->WindowNode->AtkResNode.Height)}h " +
-                $"touched={grown.Count}");
-        }
+        forensics.Write($"name node: done, frame nodes={grown.Count}");
     }
 
     /// <summary>
-    /// The window frame is a component, so its own background parts have to grow with it or the
-    /// tooltip's border stops short of our text.
+    /// Puts the frame back to the height the game gave it. Only the nodes still carrying the value
+    /// we left are touched - the game relays the tooltip out per item, and writing a remembered
+    /// height over a fresh layout would corrupt it.
     /// </summary>
-    private void GrowWindowBackground(AddonItemDetail* addon, int delta)
+    private void Shrink(AddonItemDetail* addon)
     {
-        var window = addon->WindowNode;
-        if (window == null || window->Component == null)
+        if (grown.Count == 0)
             return;
 
-        var manager = &window->Component->UldManager;
-        for (var i = 0; i < manager->NodeListCount; i++)
+        var frame = FrameNodes(addon);
+        if (frame.Count == grown.Count)
         {
-            var child = manager->NodeList[i];
-            if (child == null || child->Type != NodeType.NineGrid)
-                continue;
-
-            Grow(child, delta);
+            for (var i = 0; i < frame.Count; i++)
+            {
+                var target = (AtkResNode*)frame[i];
+                if (target->Height == grown[i].Applied)
+                    target->SetHeight(grown[i].Pristine);
+            }
         }
-    }
-
-    private void Grow(AtkResNode* target, int delta)
-    {
-        if (target == null || delta <= 0)
-            return;
-
-        var key = (nint)target;
-        if (!grown.ContainsKey(key))
-            grown[key] = new Growth(target->Height, target->Height);
-
-        target->SetHeight((ushort)(target->Height + delta));
-    }
-
-    /// <summary>
-    /// Puts back only the nodes still holding the height we gave them. The game re-lays the tooltip
-    /// out per item, and writing a remembered height over a fresh layout would corrupt it.
-    /// </summary>
-    private void Restore()
-    {
-        foreach (var (key, growth) in grown)
+        else
         {
-            var target = (AtkResNode*)key;
-            if (target->Height == growth.Applied)
-                target->SetHeight(growth.Pristine);
+            forensics.Write($"name node: frame changed shape ({grown.Count} -> {frame.Count}), leaving it alone");
         }
 
         grown.Clear();
     }
 
-    private void Record()
+    private void Grow(AddonItemDetail* addon, int delta)
     {
-        foreach (var key in new List<nint>(grown.Keys))
-            grown[key] = grown[key] with { Applied = ((AtkResNode*)key)->Height };
+        grown.Clear();
+        if (delta <= 0)
+            return;
+
+        foreach (var key in FrameNodes(addon))
+        {
+            var target = (AtkResNode*)key;
+            var pristine = target->Height;
+            target->SetHeight((ushort)(pristine + delta));
+            grown.Add(new Growth(pristine, target->Height));
+        }
+    }
+
+    /// <summary>
+    /// The nodes that draw the tooltip's outer frame, in a fixed order so a later pass can line its
+    /// remembered heights up with them. Derived fresh every time rather than cached.
+    /// </summary>
+    private static List<nint> FrameNodes(AddonItemDetail* addon)
+    {
+        var nodes = new List<nint>();
+        if (addon == null)
+            return nodes;
+
+        if (addon->RootNode != null)
+            nodes.Add((nint)addon->RootNode);
+
+        var window = addon->WindowNode;
+        if (window != null)
+        {
+            nodes.Add((nint)window);
+
+            // The frame is a component, so its own background parts have to grow with it or the
+            // border stops short of our text.
+            if (window->Component != null)
+            {
+                var manager = &window->Component->UldManager;
+                for (var i = 0; i < manager->NodeListCount; i++)
+                {
+                    var child = manager->NodeList[i];
+                    if (child != null && child->Type == NodeType.NineGrid)
+                        nodes.Add((nint)child);
+                }
+            }
+        }
+
+        if (addon->WindowCollisionNode != null)
+            nodes.Add((nint)addon->WindowCollisionNode);
+
+        return nodes;
     }
 
     private string[] ComposeLines()
     {
+        if (!config.DecorateTooltip || !config.ShowItemName)
+            return [];
+
         var itemId = (uint)Plugin.GameGui.HoveredItem;
         if (itemId == 0)
             return [];

@@ -84,24 +84,12 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.TextDisabled("Descriptions in four languages make for a very tall tooltip.");
 
         ImGui.Spacing();
-        Option(
-            "Make room for the extra name lines",
-            configuration.ExpandTooltipName,
-            value => configuration.ExpandTooltipName = value);
-
-        ImGui.TextDisabled("Without this the extra names render over the row beneath them.");
+        ImGui.TextDisabled("Item names are added below the tooltip, in a line of our own.");
 
         var space = configuration.TooltipNameExtraSpace;
-        if (ImGui.SliderInt("Extra room under the name", ref space, Configuration.MinTooltipNameSpace, Configuration.MaxTooltipNameSpace))
+        if (ImGui.SliderInt("Extra room under the names", ref space, Configuration.MinTooltipNameSpace, Configuration.MaxTooltipNameSpace))
         {
             configuration.TooltipNameExtraSpace = space;
-            Apply();
-        }
-
-        var top = configuration.TooltipNameTopOffset;
-        if (ImGui.SliderInt("Name offset", ref top, Configuration.MinCastBarTextOffset, Configuration.MaxCastBarTextOffset))
-        {
-            configuration.TooltipNameTopOffset = top;
             Apply();
         }
     }

@@ -33,8 +33,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly CastBarDecorator castBars;
     private readonly ItemTooltipDecorator itemTooltips;
     private readonly ActionTooltipDecorator actionTooltips;
-    private readonly KamiTooltipProbe kamiProbe;
-    private bool kamiStarted;
+    private readonly ItemTooltipNameNode itemNameNode;
 
     public Plugin()
     {
@@ -42,6 +41,10 @@ public sealed class Plugin : IDalamudPlugin
         Configuration.Migrate();
 
         forensics = new TooltipForensics();
+
+        // Every structural change to a tooltip goes through KamiToolKit, so it has to be up before
+        // anything that builds a node or a controller.
+        KamiToolKitLibrary.Initialize(PluginInterface);
 
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
@@ -52,13 +55,15 @@ public sealed class Plugin : IDalamudPlugin
         itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector, forensics);
         actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
 
-        // THROWAWAY SPIKE - "/polyglot kami" toggles it. Off by default, and KamiToolKit is not
-        // started until then so it cannot affect anything while the spike is off.
-        kamiProbe = new KamiTooltipProbe(Configuration, Names);
+        itemNameNode = new ItemTooltipNameNode(Configuration, Names, forensics);
+
+        // Plugin construction is not on the framework thread, and KamiToolKit asserts on it the
+        // moment it touches an addon.
+        Framework.RunOnFrameworkThread(() => itemNameNode.SetEnabled(true));
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip, \"/polyglot kami\" toggles the KamiToolKit tooltip spike.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -79,10 +84,8 @@ public sealed class Plugin : IDalamudPlugin
         castBars.Dispose();
         itemTooltips.Dispose();
         actionTooltips.Dispose();
-        kamiProbe.Dispose();
-
-        if (kamiStarted)
-            KamiToolKitLibrary.Dispose();
+        itemNameNode.Dispose();
+        KamiToolKitLibrary.Dispose();
         forensics.Dispose();
     }
 
@@ -113,27 +116,6 @@ public sealed class Plugin : IDalamudPlugin
         if (parts.Length == 2 && parts[0] == "nodes")
         {
             inspector.DumpNodes(parts[1]);
-            return;
-        }
-
-        if (parts.Length >= 1 && parts[0] == "kami")
-        {
-            var wanted = !kamiProbe.Enabled;
-            Framework.RunOnFrameworkThread(() =>
-            {
-                if (wanted && !kamiStarted)
-                {
-                    KamiToolKitLibrary.Initialize(PluginInterface);
-                    kamiStarted = true;
-                }
-
-                kamiProbe.SetEnabled(wanted);
-                kamiProbe.ArmLog();
-
-                // Both would add the same names, so only one owns the tooltip at a time.
-                itemTooltips.Suspended = wanted;
-                Log.Information($"Kami tooltip spike: {(wanted ? "on" : "off")}");
-            });
             return;
         }
 

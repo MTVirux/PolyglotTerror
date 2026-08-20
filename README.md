@@ -31,11 +31,12 @@ All names are read from the game client's own Excel data through Lumina, so they
 
 The party list shows the primary language only. Everything else shows the full stack of enabled languages, in the order you set in the settings window.
 
-## Not finished yet
+## Tooltips
 
-Tooltip name expansion is rough. The game gives a tooltip's name a fixed two-line region, so extra
-lines need the header stretched to make room. Turn "Make room for the extra name lines" off if a
-tooltip comes out mangled, and use the two sliders under it to nudge the spacing.
+The game gives a tooltip's name a fixed two-line region, so extra names cannot go there without
+relaying the whole header out. They are drawn in a line of our own below the tooltip instead, and
+the only thing the plugin resizes is the frame around it. Categories and descriptions are measured
+by the game from their own text, so those are appended directly and need no resizing.
 
 ## Languages
 

@@ -60,20 +60,9 @@ public class Configuration : IPluginConfiguration
     public int CastBarTextOffset { get; set; }
 
     /// <summary>
-    /// Stretches a tooltip's name block to fit the extra lines. Without it they render over the
-    /// row beneath.
-    /// </summary>
-    public bool ExpandTooltipName { get; set; } = true;
-
-    /// <summary>
-    /// Extra room added under the last line of a tooltip's name block.
+    /// Extra room under the translated names added to the bottom of a tooltip.
     /// </summary>
     public int TooltipNameExtraSpace { get; set; }
-
-    /// <summary>
-    /// Pushes a tooltip's name block down, growing the header by the same amount.
-    /// </summary>
-    public int TooltipNameTopOffset { get; set; }
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or
@@ -81,15 +70,6 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public void Migrate()
     {
-        // Version 1 saved ExpandTooltipName as false because nothing read it, so a config from
-        // then would silently keep the expansion off now that it does something.
-        if (Version < 2)
-        {
-            ExpandTooltipName = true;
-            Version = CurrentVersion;
-            Save();
-        }
-
         var repaired = new List<LanguageEntry>();
         var seen = new HashSet<GameLanguage>();
 

@@ -9,8 +9,9 @@ namespace PolyglotTerror.Game;
 
 /// <summary>
 /// Appends extra language lines to the item tooltip's backing string array before the game lays
-/// the window out. The description block is measured from its text and grows on its own; the name
-/// is given a fixed two-line region, so that one needs TooltipHeaderExpander afterwards.
+/// the window out. Only the blocks the game measures from their own text belong here - it grows
+/// those on its own, so nothing has to touch the tooltip's structure. The name is not one of them:
+/// it gets a fixed two-line region and is handled by <see cref="ItemTooltipNameNode"/> instead.
 /// </summary>
 public sealed unsafe class ItemTooltipDecorator : IDisposable
 {
@@ -20,10 +21,8 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private readonly NameCatalog names;
     private readonly AddonInspector inspector;
     private readonly TooltipForensics forensics;
-    private readonly TooltipSlot nameSlot;
     private readonly TooltipSlot categorySlot;
     private readonly TooltipSlot descriptionSlot;
-    private readonly TooltipHeaderExpander expander;
     private DumpStage dump;
 
     public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector, TooltipForensics forensics)
@@ -32,14 +31,11 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         this.names = names;
         this.inspector = inspector;
         this.forensics = forensics;
-        nameSlot = new TooltipSlot(forensics, "name");
         categorySlot = new TooltipSlot(forensics, "category");
         descriptionSlot = new TooltipSlot(forensics, "description");
-        expander = new TooltipHeaderExpander(config, forensics);
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnPostRequestedUpdate);
-        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, AddonName, OnPreFinalize);
     }
 
     private enum DumpStage
@@ -50,11 +46,6 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     }
 
     /// <summary>
-    /// Set while the KamiToolKit spike owns the tooltip, so the two do not both add name lines.
-    /// </summary>
-    public bool Suspended { get; set; }
-
-    /// <summary>
     /// Logs the next tooltip's strings and resulting node geometry. Typing a command dismisses the
     /// tooltip, so the dump has to be armed first and fire on the next hover.
     /// </summary>
@@ -62,13 +53,12 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
 
     public void Dispose()
     {
-        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate, OnPreFinalize);
-        expander.Forget();
+        Plugin.AddonLifecycle.UnregisterListener(OnPreRequestedUpdate, OnPostRequestedUpdate);
     }
 
     private void OnPreRequestedUpdate(AddonEvent type, AddonArgs args)
     {
-        if (Suspended || !config.DecorateTooltip || args is not AddonRequestedUpdateArgs update)
+        if (!config.DecorateTooltip || args is not AddonRequestedUpdateArgs update)
             return;
 
         var itemId = (uint)Plugin.GameGui.HoveredItem;
@@ -95,9 +85,6 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
             inspector.DumpTooltipStrings(data);
         }
 
-        if (config.ShowItemName)
-            nameSlot.Decorate(data, itemId, client.Name, head => Compose(head, itemId, static item => item.Name));
-
         if (config.ShowItemCategory && client.Category is not null)
             categorySlot.Decorate(data, itemId, client.Category, head => Compose(head, itemId, static item => item.Category));
 
@@ -114,32 +101,14 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         dump = DumpStage.AwaitingLayout;
     }
 
-    /// <summary>
-    /// The game has laid the window out by now, so this is where the name's fixed two-line region
-    /// gets stretched to fit whatever we appended to it.
-    /// </summary>
     private void OnPostRequestedUpdate(AddonEvent type, AddonArgs args)
     {
-        var addon = (AtkUnitBase*)args.Addon.Address;
-        var logging = dump == DumpStage.AwaitingLayout;
-        forensics.Write("post: begin");
-
-        if (Suspended || !config.DecorateTooltip || !config.ExpandTooltipName)
-            expander.Restore(addon);
-        else
-            expander.Expand(addon, nameSlot.AppendedText, logging);
-
-        forensics.Write("post: done");
-
-        if (!logging)
+        if (dump != DumpStage.AwaitingLayout)
             return;
 
         dump = DumpStage.Idle;
-        inspector.DumpNodes(AddonName, addon);
+        inspector.DumpNodes(AddonName, (AtkUnitBase*)args.Addon.Address);
     }
-
-    /// <summary>The addon's nodes are about to be freed, so drop them without touching them.</summary>
-    private void OnPreFinalize(AddonEvent type, AddonArgs args) => expander.Forget();
 
     private string? Compose(string head, uint itemId, Func<ItemNames, string?> pick)
     {
