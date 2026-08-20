@@ -13,19 +13,42 @@ namespace PolyglotTerror.Game;
 /// is reused between tooltips and keeps whatever geometry we leave behind, so each pass starts by
 /// putting every node we touched back the way the game had it. Without that our own growth becomes
 /// the baseline for the next calculation and the numbers drift until nothing moves at all.
+///
+/// A node remembered from the last pass is only written to if it is still reachable from the
+/// addon's root this pass. The addon rebuilds parts of its tree between tooltips - gear carries
+/// sections a potion does not - so a pointer kept from the last pass can name freed memory, and
+/// writing a remembered height into it corrupts the game's heap.
 /// </remarks>
 public sealed unsafe class TooltipHeaderExpander
 {
-    private readonly Configuration config;
-    private readonly Dictionary<nint, NodeState> touched = new();
+    /// <summary>
+    /// A tooltip header past this is already nonsense, and the growth that produced it would wrap
+    /// the ushort it is stored in.
+    /// </summary>
+    private const int MaxHeight = 2000;
 
-    public TooltipHeaderExpander(Configuration config) => this.config = config;
+    private readonly Configuration config;
+    private readonly TooltipForensics forensics;
+    private readonly Dictionary<nint, NodeState> touched = new();
+    private readonly HashSet<nint> live = new();
+
+    public TooltipHeaderExpander(Configuration config, TooltipForensics forensics)
+    {
+        this.config = config;
+        this.forensics = forensics;
+    }
 
     public void Expand(AtkUnitBase* unit, string? appendedText, bool log = false)
     {
-        RestoreTouched();
+        if (unit == null)
+        {
+            Forget();
+            return;
+        }
 
-        if (unit == null || string.IsNullOrEmpty(appendedText))
+        RestoreTouched(unit);
+
+        if (string.IsNullOrEmpty(appendedText))
         {
             if (log)
                 Plugin.Log.Information("Header expand: no appended text");
@@ -70,6 +93,10 @@ public sealed unsafe class TooltipHeaderExpander
         var target = content + padding + Math.Max(0, topOffset) + config.TooltipNameExtraSpace;
         var delta = target - pristine;
 
+        forensics.Write(
+            $"expand node={node->AtkResNode.NodeId} pristine={pristine} spacing={lineSpacing} " +
+            $"lines={lines} drawn={drawWidth}x{drawHeight} target={target} delta={delta}");
+
         if (log)
         {
             Plugin.Log.Information(
@@ -79,7 +106,7 @@ public sealed unsafe class TooltipHeaderExpander
         }
 
         if (delta > 0)
-            GrowAncestors((AtkResNode*)node, delta);
+            GrowAncestors(unit, (AtkResNode*)node, delta);
 
         if (topOffset != 0)
         {
@@ -101,7 +128,13 @@ public sealed unsafe class TooltipHeaderExpander
     /// <summary>
     /// Puts every node back and stops tracking them. Use when the addon still exists.
     /// </summary>
-    public void Restore() => RestoreTouched();
+    public void Restore(AtkUnitBase* unit)
+    {
+        if (unit == null)
+            Forget();
+        else
+            RestoreTouched(unit);
+    }
 
     /// <summary>
     /// Drops the tracked nodes without touching them, for when the addon has been freed.
@@ -111,12 +144,21 @@ public sealed unsafe class TooltipHeaderExpander
     /// <summary>
     /// Undoes only the nodes still holding the values we gave them. The game relays out parts of the
     /// tooltip per item - the description block resizes with its text - and putting our remembered
-    /// values back over a fresh layout would corrupt it.
+    /// values back over a fresh layout would corrupt it. A node no longer reachable from the root
+    /// has been freed and must not be written to at all.
     /// </summary>
-    private void RestoreTouched()
+    private void RestoreTouched(AtkUnitBase* unit)
     {
+        CollectLive(unit);
+
         foreach (var (key, state) in touched)
         {
+            if (!live.Contains(key))
+            {
+                forensics.Write($"restore skipped: node {key:x} left the tree");
+                continue;
+            }
+
             var node = (AtkResNode*)key;
             if (node->Height != state.AppliedHeight || Math.Abs(node->Y - state.AppliedY) > 0.5f)
                 continue;
@@ -126,6 +168,30 @@ public sealed unsafe class TooltipHeaderExpander
         }
 
         touched.Clear();
+    }
+
+    /// <summary>
+    /// The set of nodes the addon can reach right now. Walking from the root only ever dereferences
+    /// nodes the game still owns, which is what makes checking a remembered pointer against it safe.
+    /// </summary>
+    private void CollectLive(AtkUnitBase* unit)
+    {
+        live.Clear();
+        Walk(unit->RootNode, 0);
+    }
+
+    private void Walk(AtkResNode* node, int depth)
+    {
+        if (depth > 32)
+            return;
+
+        for (; node != null; node = node->PrevSiblingNode)
+        {
+            if (!live.Add((nint)node))
+                return;
+
+            Walk(node->ChildNode, depth + 1);
+        }
     }
 
     /// <summary>
@@ -148,16 +214,16 @@ public sealed unsafe class TooltipHeaderExpander
             touched[key] = new NodeState(node->Height, node->Y, node->Height, node->Y);
     }
 
-    private void GrowAncestors(AtkResNode* node, int delta)
+    private void GrowAncestors(AtkUnitBase* unit, AtkResNode* node, int delta)
     {
         var current = node;
-        while (current != null)
+        while (current != null && live.Contains((nint)current))
         {
             var parent = current->ParentNode;
             var top = current->Y;
 
-            Capture(current);
-            current->SetHeight((ushort)(current->Height + delta));
+            if (!Grow(current, delta))
+                return;
 
             if (parent != null)
                 AdjustSiblings(parent, current, top, delta);
@@ -177,7 +243,7 @@ public sealed unsafe class TooltipHeaderExpander
 
         for (var child = parent->ChildNode; child != null; child = child->PrevSiblingNode)
         {
-            if (child == grown)
+            if (child == grown || !live.Contains((nint)child))
                 continue;
 
             if (child->Y > top)
@@ -188,11 +254,26 @@ public sealed unsafe class TooltipHeaderExpander
             }
 
             if (child->Y <= 0 && child->Y + child->Height >= parentHeight)
-            {
-                Capture(child);
-                child->SetHeight((ushort)(child->Height + delta));
-            }
+                Grow(child, delta);
         }
+    }
+
+    /// <summary>
+    /// Grows one node, refusing a result that could only come from growth stacking up across passes.
+    /// The height is a ushort, so letting it run would wrap it rather than merely look wrong.
+    /// </summary>
+    private bool Grow(AtkResNode* node, int delta)
+    {
+        var target = node->Height + delta;
+        if (target > MaxHeight)
+        {
+            forensics.Write($"grow refused: node {node->NodeId} would reach {target}");
+            return false;
+        }
+
+        Capture(node);
+        node->SetHeight((ushort)target);
+        return true;
     }
 
     /// <summary>

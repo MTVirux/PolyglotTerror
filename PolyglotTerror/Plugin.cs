@@ -28,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
     private readonly AddonInspector inspector = new();
+    private readonly TooltipForensics forensics;
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
     private readonly ItemTooltipDecorator itemTooltips;
@@ -39,13 +40,15 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Migrate();
 
+        forensics = new TooltipForensics();
+
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
 
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector);
+        itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector, forensics);
         actionTooltips = new ActionTooltipDecorator(Configuration, Names);
 
         // THROWAWAY SPIKE - "/polyglot kami" toggles it. Off by default.
@@ -77,6 +80,7 @@ public sealed class Plugin : IDalamudPlugin
         actionTooltips.Dispose();
         kamiProbe.Dispose();
         KamiToolKitLibrary.Dispose();
+        forensics.Dispose();
     }
 
     private void RegisterCastBars()

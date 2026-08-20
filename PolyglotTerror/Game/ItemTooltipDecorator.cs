@@ -25,12 +25,12 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
     private readonly TooltipHeaderExpander expander;
     private DumpStage dump;
 
-    public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector)
+    public ItemTooltipDecorator(Configuration config, NameCatalog names, AddonInspector inspector, TooltipForensics forensics)
     {
         this.config = config;
         this.names = names;
         this.inspector = inspector;
-        expander = new TooltipHeaderExpander(config);
+        expander = new TooltipHeaderExpander(config, forensics);
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, AddonName, OnPostRequestedUpdate);
@@ -115,7 +115,7 @@ public sealed unsafe class ItemTooltipDecorator : IDisposable
         var logging = dump == DumpStage.AwaitingLayout;
 
         if (Suspended || !config.DecorateTooltip || !config.ExpandTooltipName)
-            expander.Restore();
+            expander.Restore(addon);
         else
             expander.Expand(addon, nameSlot.AppendedText, logging);
 
