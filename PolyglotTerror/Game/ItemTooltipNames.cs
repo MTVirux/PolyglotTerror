@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using Dalamud.Game.ClientState.Keys;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -30,6 +31,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private string[] lines = [];
     private bool enabled;
     private bool disposed;
+    private bool altWasHeld;
 
     public ItemTooltipNames(Configuration config, NameCatalog names, TooltipForensics forensics)
     {
@@ -94,9 +96,14 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     }
 
     /// <summary>
-    /// Holding Alt hides a tooltip without closing it, and the game does that by hiding the root
-    /// node rather than the addon, so the addon's own flag still reads as visible.
+    /// Holding Alt hides the tooltip, but none of the addon's own visibility fields move when it
+    /// does, so the key is read directly rather than inferred from the tooltip.
     /// </summary>
+    private static bool AltHeld
+        => Plugin.KeyState[VirtualKey.MENU]
+           || Plugin.KeyState[VirtualKey.LMENU]
+           || Plugin.KeyState[VirtualKey.RMENU];
+
     private static bool Showing(AtkUnitBase* tooltip)
         => tooltip != null
            && tooltip->IsVisible
@@ -105,13 +112,40 @@ public sealed unsafe class ItemTooltipNames : IDisposable
            && tooltip->RootNode->Color.A > 0;
 
     /// <summary>
+    /// Records the tooltip's own visibility fields as Alt goes down and up, so the key check can be
+    /// swapped for whichever of them the game actually moves.
+    /// </summary>
+    private void LogAltTransition(AtkUnitBase* tooltip, bool held)
+    {
+        if (held == altWasHeld)
+            return;
+
+        altWasHeld = held;
+
+        if (tooltip == null)
+        {
+            forensics.Write($"alt {(held ? "down" : "up")}: no tooltip");
+            return;
+        }
+
+        var root = tooltip->RootNode;
+        forensics.Write(
+            $"alt {(held ? "down" : "up")}: visible={tooltip->IsVisible} alpha={tooltip->Alpha} " +
+            $"visFlags={tooltip->VisibilityFlags} showHide={tooltip->ShowHideFlags} " +
+            $"rootVisible={(root != null && root->IsVisible())} rootAlpha={(root == null ? -1 : root->Color.A)}");
+    }
+
+    /// <summary>
     /// Follows the tooltip. It moves with the cursor every frame and is hidden rather than closed
     /// between hovers, so neither its position nor its visibility can be learnt from an event.
     /// </summary>
     private void OnFrameworkUpdate(IFramework framework)
     {
         var tooltip = Tooltip();
-        if (!Showing(tooltip) || lines.Length == 0)
+        var held = AltHeld;
+        LogAltTransition(tooltip, held);
+
+        if (held || !Showing(tooltip) || lines.Length == 0)
         {
             Hide();
             return;
