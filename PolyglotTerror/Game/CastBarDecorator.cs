@@ -24,6 +24,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     private readonly Dictionary<string, CastBarSurface> surfaces = new();
     private readonly Dictionary<string, uint> discoveredNodeIds = new();
     private readonly Dictionary<nint, string> lastWritten = new();
+    private readonly Dictionary<nint, string> gameText = new();
     private readonly Dictionary<string, Dictionary<nint, NodeState>> touched = new();
     private bool overheadRegistered;
     private bool partyListRegistered;
@@ -81,6 +82,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
         surfaces.Clear();
         discoveredNodeIds.Clear();
         lastWritten.Clear();
+        gameText.Clear();
         touched.Clear();
         writer.Dispose();
     }
@@ -97,6 +99,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
         foreach (var key in nodes.Keys)
         {
             lastWritten.Remove(key);
+            gameText.Remove(key);
             writer.Forget(key);
         }
     }
@@ -131,14 +134,15 @@ public sealed unsafe class CastBarDecorator : IDisposable
         if (ResolveCaster(surface.Source) is not { IsCasting: true } caster)
             return;
 
+        var actionType = caster.CastActionType;
         var actionId = caster.CastActionId;
-        var clientName = ClientActionName(actionId);
+        var clientName = ClientCastName(actionType, actionId);
         if (clientName == null)
             return;
 
         var node = ResolveTextNode(addon, surface, clientName);
         if (node != null)
-            Decorate(args.AddonName, node, actionId, surface.Policy);
+            Decorate(args.AddonName, node, actionType, actionId, surface.Policy);
     }
 
     private void OnOverheadDraw(AddonEvent type, AddonArgs args)
@@ -158,12 +162,13 @@ public sealed unsafe class CastBarDecorator : IDisposable
             if (Plugin.ObjectTable.SearchById(bars[i].ObjectId.Id) is not IBattleChara { IsCasting: true } caster)
                 continue;
 
+            var actionType = caster.CastActionType;
             var actionId = caster.CastActionId;
-            var clientName = ClientActionName(actionId);
+            var clientName = ClientCastName(actionType, actionId);
             if (clientName == null || !HoldsActionName(node, clientName))
                 continue;
 
-            Decorate(args.AddonName, node, actionId, LanguagePolicy.FullStack);
+            Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.FullStack);
         }
     }
 
@@ -178,14 +183,15 @@ public sealed unsafe class CastBarDecorator : IDisposable
             if (member.GameObject is not IBattleChara { IsCasting: true } caster)
                 continue;
 
+            var actionType = caster.CastActionType;
             var actionId = caster.CastActionId;
-            var clientName = ClientActionName(actionId);
+            var clientName = ClientCastName(actionType, actionId);
             if (clientName == null)
                 continue;
 
             var node = FindTextNode(addon->UldManager, clientName);
             if (node != null)
-                Decorate(args.AddonName, node, actionId, LanguagePolicy.PrimaryOnly);
+                Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.PrimaryOnly);
         }
     }
 
@@ -221,14 +227,14 @@ public sealed unsafe class CastBarDecorator : IDisposable
         return null;
     }
 
-    private void Decorate(string addonName, AtkTextNode* node, uint actionId, LanguagePolicy policy)
+    private void Decorate(string addonName, AtkTextNode* node, byte actionType, uint actionId, LanguagePolicy policy)
     {
         var original = Remember(addonName, node);
 
         if (policy == LanguagePolicy.PrimaryOnly)
         {
             var primary = LineComposer.Primary(config.Languages);
-            var name = primary is { } language ? names.GetAction(language, actionId) : null;
+            var name = primary is { } language ? CastName(node, language, actionType, actionId) : null;
             if (!string.IsNullOrEmpty(name))
                 Write(node, name);
 
@@ -239,7 +245,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
         foreach (var entry in config.Languages)
         {
             if (entry.Enabled)
-                resolved[entry.Language] = names.GetAction(entry.Language, actionId);
+                resolved[entry.Language] = CastName(node, entry.Language, actionType, actionId);
         }
 
         var composed = LineComposer.ComposeStandalone(resolved, config.Languages, config.HideDuplicates);
@@ -312,11 +318,28 @@ public sealed unsafe class CastBarDecorator : IDisposable
         _ => null,
     };
 
-    private string? ClientActionName(uint actionId)
+    private string? ClientCastName(byte actionType, uint actionId)
     {
         var language = NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage);
-        var name = names.GetAction(language, actionId);
+        var name = names.GetCastName(language, actionType, actionId);
         return string.IsNullOrEmpty(name) ? null : name;
+    }
+
+    /// <summary>
+    /// Mount, minion and fashion accessory names are stored lowercase and the client capitalises
+    /// them as it draws, so the client language line uses what the node held rather than the sheet.
+    /// Only a text that differs by case is taken, which also rules out a leftover from an earlier cast.
+    /// </summary>
+    private string? CastName(AtkTextNode* node, GameLanguage language, byte actionType, uint actionId)
+    {
+        var name = names.GetCastName(language, actionType, actionId);
+        if (language != NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage))
+            return name;
+
+        return gameText.TryGetValue((nint)node, out var shown)
+            && string.Equals(shown, name, StringComparison.OrdinalIgnoreCase)
+            ? shown
+            : name;
     }
 
     private void Write(AtkTextNode* node, string text)
@@ -332,7 +355,10 @@ public sealed unsafe class CastBarDecorator : IDisposable
     private AtkTextNode* ResolveTextNode(AtkUnitBase* addon, CastBarSurface surface, string clientName)
     {
         if (discoveredNodeIds.TryGetValue(surface.AddonName, out var cachedId))
-            return GetTextNode(addon, cachedId);
+        {
+            var cached = GetTextNode(addon, cachedId);
+            return cached != null && HoldsActionName(cached, clientName) ? cached : null;
+        }
 
         if (surface.TextNodeId != 0)
         {
@@ -374,8 +400,11 @@ public sealed unsafe class CastBarDecorator : IDisposable
     private bool HoldsActionName(AtkTextNode* node, string clientName)
     {
         var text = node->NodeText.ToString().Trim();
-        if (string.Equals(text, clientName, StringComparison.Ordinal))
+        if (string.Equals(text, clientName, StringComparison.OrdinalIgnoreCase))
+        {
+            gameText[(nint)node] = text;
             return true;
+        }
 
         return lastWritten.TryGetValue((nint)node, out var written)
             && string.Equals(text, written, StringComparison.Ordinal);

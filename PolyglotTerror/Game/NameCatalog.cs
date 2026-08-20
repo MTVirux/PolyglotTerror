@@ -24,7 +24,7 @@ public sealed class NameCatalog
     };
 
     private readonly Dictionary<(GameLanguage, uint), ItemNames> itemMemo = new();
-    private readonly Dictionary<(GameLanguage, uint), string?> actionMemo = new();
+    private readonly Dictionary<(GameLanguage, byte, uint), string?> castMemo = new();
     private readonly Dictionary<(GameLanguage, DetailKind, uint), ActionNames> detailMemo = new();
 
     public static GameLanguage FromClientLanguage(ClientLanguage language) => language switch
@@ -46,15 +46,18 @@ public sealed class NameCatalog
         return resolved;
     }
 
-    public string? GetAction(GameLanguage language, uint actionId)
+    /// <summary>
+    /// Resolves what a cast bar shows. The id only means an action row when the client says the
+    /// cast is an action - mounting, interacting and the rest number their own sheets from one.
+    /// </summary>
+    public string? GetCastName(GameLanguage language, byte actionType, uint actionId)
     {
-        var key = (language, actionId);
-        if (actionMemo.TryGetValue(key, out var cached))
+        var key = (language, actionType, actionId);
+        if (castMemo.TryGetValue(key, out var cached))
             return cached;
 
-        var sheet = GetSheet<LuminaAction>(language);
-        var resolved = sheet?.GetRowOrDefault(actionId) is { } row ? Usable(row.Name.ExtractText()) : null;
-        actionMemo[key] = resolved;
+        var resolved = ResolveCastName(language, CastActionSources.FromActionType(actionType), actionId);
+        castMemo[key] = resolved;
         return resolved;
     }
 
@@ -76,9 +79,29 @@ public sealed class NameCatalog
     public void Clear()
     {
         itemMemo.Clear();
-        actionMemo.Clear();
+        castMemo.Clear();
         detailMemo.Clear();
     }
+
+    private static string? ResolveCastName(GameLanguage language, CastNameSource source, uint actionId) => source switch
+    {
+        CastNameSource.Action => Row<LuminaAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.Item => Row<Item>(language, ItemIdNormalizer.ToBaseItemId(actionId), static row => row.Name.ExtractText()),
+        CastNameSource.EventItem => Row<EventItem>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.EventAction => Row<EventAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.GeneralAction => Row<GeneralAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.BuddyAction => Row<BuddyAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.MainCommand => Row<MainCommand>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.Companion => Row<Companion>(language, actionId, static row => row.Singular.ExtractText()),
+        CastNameSource.CraftAction => Row<CraftAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.PetAction => Row<PetAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.Mount => Row<Mount>(language, actionId, static row => row.Singular.ExtractText()),
+        CastNameSource.ChocoboRaceAbility => Row<ChocoboRaceAbility>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.ChocoboRaceItem => Row<ChocoboRaceItem>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.BgcArmyAction => Row<BgcArmyAction>(language, actionId, static row => row.Name.ExtractText()),
+        CastNameSource.Ornament => Row<Ornament>(language, actionId, static row => row.Singular.ExtractText()),
+        _ => null,
+    };
 
     private static ActionNames ResolveActionDetail(GameLanguage language, DetailKind kind, uint actionId) => kind switch
     {
