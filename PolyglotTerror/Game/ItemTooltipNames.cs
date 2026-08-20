@@ -94,13 +94,24 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     }
 
     /// <summary>
+    /// Holding Alt hides a tooltip without closing it, and the game does that by hiding the root
+    /// node rather than the addon, so the addon's own flag still reads as visible.
+    /// </summary>
+    private static bool Showing(AtkUnitBase* tooltip)
+        => tooltip != null
+           && tooltip->IsVisible
+           && tooltip->RootNode != null
+           && tooltip->RootNode->IsVisible()
+           && tooltip->RootNode->Color.A > 0;
+
+    /// <summary>
     /// Follows the tooltip. It moves with the cursor every frame and is hidden rather than closed
     /// between hovers, so neither its position nor its visibility can be learnt from an event.
     /// </summary>
     private void OnFrameworkUpdate(IFramework framework)
     {
         var tooltip = Tooltip();
-        if (tooltip == null || !tooltip->IsVisible || tooltip->RootNode == null || lines.Length == 0)
+        if (!Showing(tooltip) || lines.Length == 0)
         {
             Hide();
             return;
@@ -144,7 +155,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
     private string[] ComposeLines()
     {
-        if (!config.DecorateTooltip || !config.ShowItemName)
+        if (!config.DecorateTooltip)
             return [];
 
         var itemId = (uint)Plugin.GameGui.HoveredItem;
@@ -155,20 +166,41 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         if (client.Name is null)
             return [];
 
+        var block = new List<string>();
+
+        if (config.ShowItemName)
+            AddSection(block, itemId, client.Name, static item => item.Name);
+
+        if (config.ShowItemCategory && client.Category is not null)
+            AddSection(block, itemId, client.Category, static item => item.Category);
+
+        if (config.ShowItemDescription && client.Description is not null)
+            AddSection(block, itemId, client.Description, static item => item.Description);
+
+        return block.ToArray();
+    }
+
+    /// <summary>
+    /// Adds one block's translations, separated from the block before it by a blank line. The first
+    /// line composed is the text the game already drew, so it is dropped.
+    /// </summary>
+    private void AddSection(List<string> block, uint itemId, string clientText, Func<ItemNames, string?> pick)
+    {
         var candidates = new Dictionary<GameLanguage, string?>();
         foreach (var entry in config.Languages)
         {
             if (entry.Enabled)
-                candidates[entry.Language] = names.GetItem(entry.Language, itemId).Name;
+                candidates[entry.Language] = pick(names.GetItem(entry.Language, itemId));
         }
 
-        var lines = LineComposer.BuildLines(client.Name, candidates, config.Languages, config.HideDuplicates);
+        var composed = LineComposer.BuildLines(clientText, candidates, config.Languages, config.HideDuplicates);
+        if (composed.Count <= 1)
+            return;
 
-        // The first line is the name the game already drew.
-        var extra = new List<string>();
-        for (var i = 1; i < lines.Count; i++)
-            extra.Add(lines[i]);
+        if (block.Count > 0)
+            block.Add(string.Empty);
 
-        return extra.ToArray();
+        for (var i = 1; i < composed.Count; i++)
+            block.Add(composed[i]);
     }
 }

@@ -29,9 +29,11 @@ public sealed unsafe class NamePanel : NativeAddon
         InternalName = "PolyglotNames";
         Title = string.Empty;
         DisableClose = true;
+        DisableCloseTransition = true;
         RespectCloseAll = false;
         OpenWindowSoundEffectId = 0;
         Size = new Vector2(280f, 120f);
+        CreateWindowNode = () => new PanelWindowNode();
     }
 
     /// <summary>The size this panel wants for the lines it is holding.</summary>

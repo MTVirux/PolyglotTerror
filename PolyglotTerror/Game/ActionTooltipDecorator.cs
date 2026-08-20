@@ -9,7 +9,7 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// The action tooltip counterpart of <see cref="ItemTooltipDecorator"/>. Covers everything the
+/// Appends extra language lines to the action tooltip's backing string array. Covers everything the
 /// game routes through ActionDetail: combat actions and traits, general and main commands,
 /// chocobo actions, mounts, minions and fashion accessories.
 /// </summary>

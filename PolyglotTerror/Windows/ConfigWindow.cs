@@ -81,10 +81,10 @@ public sealed class ConfigWindow : Window, IDisposable
         Option("Action name", configuration.ShowActionName, value => configuration.ShowActionName = value);
         Option("Action description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
 
-        ImGui.TextDisabled("Descriptions in four languages make for a very tall tooltip.");
+        ImGui.TextDisabled("Descriptions in four languages make for a very tall panel.");
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Item names appear in a small panel beside the tooltip.");
+        ImGui.TextDisabled("Item translations appear in a panel beside the tooltip, and hide with it.");
 
         var gap = configuration.TooltipPanelGap;
         if (ImGui.SliderInt("Gap beside the tooltip", ref gap, Configuration.MinTooltipPanelGap, Configuration.MaxTooltipPanelGap))

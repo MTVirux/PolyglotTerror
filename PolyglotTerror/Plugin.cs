@@ -32,7 +32,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly TooltipForensics forensics;
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
-    private readonly ItemTooltipDecorator itemTooltips;
     private readonly ActionTooltipDecorator actionTooltips;
     private readonly ItemTooltipNames itemNames;
 
@@ -53,7 +52,6 @@ public sealed class Plugin : IDalamudPlugin
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector, forensics);
         actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
 
         itemNames = new ItemTooltipNames(Configuration, Names, forensics);
@@ -64,7 +62,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip, \"/polyglot kami\" toggles the tooltip name panel.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot kami\" toggles the tooltip name panel.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -83,7 +81,6 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
         castBars.Dispose();
-        itemTooltips.Dispose();
         actionTooltips.Dispose();
         itemNames.Dispose();
         KamiToolKitLibrary.Dispose();
@@ -129,13 +126,6 @@ public sealed class Plugin : IDalamudPlugin
             var state = itemNames.Enabled ? "enabled" : "disabled";
             Chat.Print($"PolyglotTerror: tooltip name panel {state}.");
             Log.Information($"Tooltip name panel {state}.");
-            return;
-        }
-
-        if (parts.Length == 2 && parts[0] == "dump" && parts[1] == "item")
-        {
-            itemTooltips.ArmDump();
-            Log.Information("Armed - hover an item to dump its tooltip.");
             return;
         }
 

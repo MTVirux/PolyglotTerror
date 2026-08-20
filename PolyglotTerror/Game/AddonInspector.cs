@@ -74,27 +74,4 @@ public sealed unsafe class AddonInspector
         }
     }
 
-    public void DumpTooltipStrings(StringArrayData* strings)
-    {
-        if (strings == null)
-        {
-            Plugin.Log.Information("String array is null.");
-            return;
-        }
-
-        Plugin.Log.Information($"String array: {strings->Size} entries");
-
-        for (var i = 0; i < strings->Size; i++)
-        {
-            var entry = strings->StringArray[i];
-            if (!entry.HasValue)
-                continue;
-
-            var text = entry.ToString();
-            if (string.IsNullOrEmpty(text))
-                continue;
-
-            Plugin.Log.Information($"  [{i}] \"{text}\"");
-        }
-    }
 }
