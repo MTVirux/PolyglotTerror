@@ -1,55 +1,35 @@
 using System.Numerics;
-using KamiToolKit.Enums;
 using KamiToolKit.Nodes;
 
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// A window with no header - just a border around its content.
+/// The game's window, with the header furniture taken off.
 /// </summary>
 /// <remarks>
-/// KamiToolKit's stock window draws a title bar, close button and dividing line, which is a lot of
-/// furniture for a panel that sits next to a tooltip and holds three lines of text.
+/// Building the frame from scratch means picking textures and losing the background that makes the
+/// text readable. Keeping the game's window and hiding its title bar, buttons and dividing line
+/// leaves the same background and border a tooltip has.
 /// </remarks>
-public sealed class PanelWindowNode : WindowNodeBase
+public sealed class PanelWindowNode : WindowNode
 {
-    private const float Inset = 8f;
-
-    private readonly BorderNineGridNode border;
-
-    // The base class insists on a node to hand focus to. There is no header here, so it gets an
-    // empty one that never draws.
-    private readonly ResNode focusStandIn = new() { IsVisible = false };
+    private const float Inset = 10f;
 
     public PanelWindowNode()
     {
-        border = new BorderNineGridNode
-        {
-            Position = Vector2.Zero,
-            Size = Size,
-            IsVisible = true,
-        };
+        ShowCloseButton = false;
+        ShowConfigButton = false;
+        ShowHelpButton = false;
 
-        border.AttachNode(this, NodePosition.AsLastChild);
-        focusStandIn.AttachNode(this, NodePosition.AsLastChild);
+        HeaderContainerNode.IsVisible = false;
+        DividingLineNode.IsVisible = false;
+        TitleNode.IsVisible = false;
+        SubtitleNode.IsVisible = false;
     }
 
     public override float HeaderHeight => 0f;
 
-    public override Vector2 ContentSize => Size - new Vector2(Inset * 2f, Inset * 2f);
-
     public override Vector2 ContentStartPosition => new(Inset, Inset);
 
-    public override ResNode WindowHeaderFocusNode => focusStandIn;
-
-    public override void SetTitle(string title, string? subtitle)
-    {
-        // There is no header to put a title in.
-    }
-
-    protected override void OnSizeChanged()
-    {
-        base.OnSizeChanged();
-        border.Size = Size;
-    }
+    public override Vector2 ContentSize => Size - new Vector2(Inset * 2f, Inset * 2f);
 }
