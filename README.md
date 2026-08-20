@@ -34,9 +34,9 @@ The party list shows the primary language only. Everything else shows the full s
 ## Tooltips
 
 The game gives a tooltip's name a fixed two-line region, so extra names cannot go there without
-relaying the whole header out. They are drawn in a line of our own below the tooltip instead, and
-the only thing the plugin resizes is the frame around it. Categories and descriptions are measured
-by the game from their own text, so those are appended directly and need no resizing.
+relaying the whole header out and moving every row beneath it. They are shown in a small panel
+beside the tooltip instead, which leaves the game's own layout untouched. Categories and
+descriptions are measured by the game from their own text, so those are appended directly.
 
 ## Languages
 

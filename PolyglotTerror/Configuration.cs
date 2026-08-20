@@ -15,9 +15,9 @@ public class Configuration : IPluginConfiguration
 
     public const int MaxCastBarTextOffset = 40;
 
-    public const int MinTooltipNameSpace = 0;
+    public const int MinTooltipPanelGap = 0;
 
-    public const int MaxTooltipNameSpace = 40;
+    public const int MaxTooltipPanelGap = 40;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -60,9 +60,9 @@ public class Configuration : IPluginConfiguration
     public int CastBarTextOffset { get; set; }
 
     /// <summary>
-    /// Extra room under the translated names added to the bottom of a tooltip.
+    /// Distance between a tooltip and the panel of translated names beside it.
     /// </summary>
-    public int TooltipNameExtraSpace { get; set; }
+    public int TooltipPanelGap { get; set; } = 8;
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or

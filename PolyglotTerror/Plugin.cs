@@ -34,7 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly CastBarDecorator castBars;
     private readonly ItemTooltipDecorator itemTooltips;
     private readonly ActionTooltipDecorator actionTooltips;
-    private readonly ItemTooltipNameNode itemNameNode;
+    private readonly ItemTooltipNames itemNames;
 
     public Plugin()
     {
@@ -56,15 +56,15 @@ public sealed class Plugin : IDalamudPlugin
         itemTooltips = new ItemTooltipDecorator(Configuration, Names, inspector, forensics);
         actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
 
-        itemNameNode = new ItemTooltipNameNode(Configuration, Names, forensics);
+        itemNames = new ItemTooltipNames(Configuration, Names, forensics);
 
         // Plugin construction is not on the framework thread, and KamiToolKit asserts on it the
         // moment it touches an addon.
-        Framework.RunOnFrameworkThread(() => itemNameNode.SetEnabled(true));
+        Framework.RunOnFrameworkThread(() => itemNames.SetEnabled(true));
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip, \"/polyglot kami\" toggles the tooltip name node.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip, \"/polyglot kami\" toggles the tooltip name panel.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -85,7 +85,7 @@ public sealed class Plugin : IDalamudPlugin
         castBars.Dispose();
         itemTooltips.Dispose();
         actionTooltips.Dispose();
-        itemNameNode.Dispose();
+        itemNames.Dispose();
         KamiToolKitLibrary.Dispose();
         forensics.Dispose();
     }
@@ -124,11 +124,11 @@ public sealed class Plugin : IDalamudPlugin
         {
             // Command handlers already run on the framework thread, which is where KamiToolKit
             // insists on being called from.
-            itemNameNode.SetEnabled(!itemNameNode.Enabled);
+            itemNames.SetEnabled(!itemNames.Enabled);
 
-            var state = itemNameNode.Enabled ? "enabled" : "disabled";
-            Chat.Print($"PolyglotTerror: tooltip name node {state}.");
-            Log.Information($"Tooltip name node {state}.");
+            var state = itemNames.Enabled ? "enabled" : "disabled";
+            Chat.Print($"PolyglotTerror: tooltip name panel {state}.");
+            Log.Information($"Tooltip name panel {state}.");
             return;
         }
 
