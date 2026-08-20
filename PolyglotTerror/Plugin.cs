@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using KamiToolKit;
 using PolyglotTerror.Game;
 using PolyglotTerror.Windows;
 
@@ -23,11 +24,13 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
     private readonly AddonInspector inspector = new();
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
+    private readonly KamiTooltipProbe kamiProbe;
 
     public Plugin()
     {
@@ -44,9 +47,13 @@ public sealed class Plugin : IDalamudPlugin
         // tooltip's name a fixed two-line region, so extra lines render over the row beneath it and
         // making room means relaying out the addon. Its settings stay visible but inert.
 
+        // THROWAWAY SPIKE - "/polyglot kami" toggles it. Off by default.
+        KamiToolKitLibrary.Initialize(PluginInterface);
+        kamiProbe = new KamiTooltipProbe(Configuration, Names);
+
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot kami\" toggles the KamiToolKit tooltip spike.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -65,6 +72,8 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
         castBars.Dispose();
+        kamiProbe.Dispose();
+        KamiToolKitLibrary.Dispose();
     }
 
     private void RegisterCastBars()
@@ -94,6 +103,18 @@ public sealed class Plugin : IDalamudPlugin
         if (parts.Length == 2 && parts[0] == "nodes")
         {
             inspector.DumpNodes(parts[1]);
+            return;
+        }
+
+        if (parts.Length >= 1 && parts[0] == "kami")
+        {
+            var wanted = !kamiProbe.Enabled;
+            Framework.RunOnFrameworkThread(() =>
+            {
+                kamiProbe.SetEnabled(wanted);
+                kamiProbe.ArmLog();
+                Log.Information($"Kami tooltip spike: {(wanted ? "on" : "off")}");
+            });
             return;
         }
 
