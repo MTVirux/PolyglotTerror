@@ -42,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration.Migrate();
 
         forensics = new TooltipForensics();
+        inspector.AlsoWriteTo(forensics);
 
         // Every structural change to a tooltip goes through KamiToolKit, so it has to be up before
         // anything that builds a node or a controller.
