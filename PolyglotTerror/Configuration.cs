@@ -9,6 +9,8 @@ namespace PolyglotTerror;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
+    private const int CurrentVersion = 2;
+
     public const int MinCastBarTextOffset = -40;
 
     public const int MaxCastBarTextOffset = 40;
@@ -17,7 +19,7 @@ public class Configuration : IPluginConfiguration
 
     public const int MaxTooltipNameSpace = 40;
 
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
 
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public List<LanguageEntry> Languages { get; set; } =
@@ -79,6 +81,15 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public void Migrate()
     {
+        // Version 1 saved ExpandTooltipName as false because nothing read it, so a config from
+        // then would silently keep the expansion off now that it does something.
+        if (Version < 2)
+        {
+            ExpandTooltipName = true;
+            Version = CurrentVersion;
+            Save();
+        }
+
         var repaired = new List<LanguageEntry>();
         var seen = new HashSet<GameLanguage>();
 
