@@ -58,6 +58,8 @@ public sealed unsafe class ItemTooltipNameNode : IDisposable
         };
     }
 
+    public bool Enabled => enabled;
+
     /// <summary>
     /// Must be called on the framework thread - KamiToolKit asserts on it whenever it touches
     /// an addon.

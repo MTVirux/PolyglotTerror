@@ -24,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IChatGui Chat { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
@@ -63,7 +64,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip, \"/polyglot kami\" toggles the tooltip name node.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -116,6 +117,18 @@ public sealed class Plugin : IDalamudPlugin
         if (parts.Length == 2 && parts[0] == "nodes")
         {
             inspector.DumpNodes(parts[1]);
+            return;
+        }
+
+        if (parts.Length >= 1 && parts[0] == "kami")
+        {
+            // Command handlers already run on the framework thread, which is where KamiToolKit
+            // insists on being called from.
+            itemNameNode.SetEnabled(!itemNameNode.Enabled);
+
+            var state = itemNameNode.Enabled ? "enabled" : "disabled";
+            Chat.Print($"PolyglotTerror: tooltip name node {state}.");
+            Log.Information($"Tooltip name node {state}.");
             return;
         }
 
