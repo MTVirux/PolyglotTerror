@@ -60,6 +60,9 @@ public sealed unsafe class NamePanel : NativeAddon
         pendingTag = languageTag ?? string.Empty;
         pending = string.Join('\n', lines);
 
+        // Content arrives whether the panel is open or not - the tooltip refreshes constantly - so
+        // the pending strings above are the real store, and the nodes are written to only while
+        // they exist. OnFinalize drops them, which is what keeps this from touching freed memory.
         if (tag is not null)
         {
             tag.String = pendingTag;
@@ -114,6 +117,17 @@ public sealed unsafe class NamePanel : NativeAddon
         AddNode(text);
 
         MakeNonInteractive(addon);
+    }
+
+    /// <summary>
+    /// Lets go of the nodes. The game frees them with the addon, and this object outlives that -
+    /// it is reopened on the next hover - so holding the references means writing into freed nodes.
+    /// </summary>
+    protected override void OnFinalize(AtkUnitBase* addon)
+    {
+        tag = null;
+        text = null;
+        base.OnFinalize(addon);
     }
 
     /// <summary>
