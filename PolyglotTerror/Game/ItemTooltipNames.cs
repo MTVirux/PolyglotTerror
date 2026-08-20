@@ -24,6 +24,7 @@ namespace PolyglotTerror.Game;
 public sealed unsafe class ItemTooltipNames : IDisposable
 {
     private const string AddonName = "ItemDetail";
+    private const int IdleFramesBeforeClose = 10;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -32,6 +33,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
     private List<Section> sections = [];
     private GameLanguage? selected;
+    private string state = string.Empty;
+    private int idleFrames;
     private bool enabled;
     private bool disposed;
     private bool altWasHeld;
@@ -199,7 +202,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
         if (held || !Showing(tooltip))
         {
-            Hide();
+            Note(held ? "idle: alt" : "idle: tooltip not showing");
+            Idle();
             return;
         }
 
@@ -208,11 +212,39 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
         if (sections.Count == 0)
         {
-            Hide();
+            Note("idle: nothing to show");
+            Idle();
             return;
         }
 
+        idleFrames = 0;
+        Note("laying out");
         Lay(tooltip);
+    }
+
+    /// <summary>
+    /// Waits a few frames before closing. The tooltip drops out for a frame here and there while the
+    /// game rebuilds it, and closing on every one of those would mean reopening just as often -
+    /// enough churn that the panels never finish opening at all.
+    /// </summary>
+    private void Idle()
+    {
+        if (idleFrames > IdleFramesBeforeClose)
+            return;
+
+        idleFrames++;
+        if (idleFrames > IdleFramesBeforeClose)
+            Hide();
+    }
+
+    /// <summary>Logs what the tick decided, but only when that changes.</summary>
+    private void Note(string next)
+    {
+        if (state == next)
+            return;
+
+        state = next;
+        forensics.Write($"panels: {next}");
     }
 
     /// <summary>
@@ -258,6 +290,9 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             {
                 panel.Size = sizes[i];
                 panel.Open();
+                forensics.Write(
+                    $"panels: opened {i} isOpen={panel.IsOpen} at {x:F0},{y:F0} " +
+                    $"size {sizes[i].X:F0}x{sizes[i].Y:F0}");
             }
 
             panel.SetWindowSize(sizes[i]);
