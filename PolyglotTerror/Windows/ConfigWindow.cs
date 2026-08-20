@@ -89,10 +89,11 @@ public sealed class ConfigWindow : Window, IDisposable
             configuration.CycleLanguagesWithScroll,
             value => configuration.CycleLanguagesWithScroll = value);
 
+        ImGui.TextDisabled("Off shows every language at once, one panel each, stacked top to bottom.");
         ImGui.TextDisabled("Scrolling still scrolls whatever is under the cursor as well.");
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Item translations appear in a panel beside the tooltip, and hide with it.");
+        ImGui.TextDisabled("Item translations appear beside the tooltip, and hide with it.");
 
         var gap = configuration.TooltipPanelGap;
         if (ImGui.SliderInt("Gap beside the tooltip", ref gap, Configuration.MinTooltipPanelGap, Configuration.MaxTooltipPanelGap))

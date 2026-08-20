@@ -27,9 +27,10 @@ public sealed unsafe class NamePanel : NativeAddon
     private string pending = string.Empty;
 
     [SetsRequiredMembers]
-    public NamePanel()
+    public NamePanel(int index)
     {
-        InternalName = "PolyglotNames";
+        // Each addon needs its own name, or the game's lookup cannot tell the stack apart.
+        InternalName = $"PolyglotNames{index}";
         Title = string.Empty;
         DisableClose = true;
         DisableCloseTransition = true;

@@ -13,12 +13,13 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// Keeps <see cref="NamePanel"/> beside the item tooltip and filled with the hovered item's names.
+/// Keeps a column of <see cref="NamePanel"/> beside the item tooltip, one per language, filled with
+/// the hovered item's names.
 /// </summary>
 /// <remarks>
 /// The tooltip's own nodes are never written to. Content is picked up when the game refreshes the
-/// tooltip; the panel is placed and hidden from the framework tick, because a tooltip that is merely
-/// hidden stops drawing without telling anyone.
+/// tooltip; the panels are placed and closed from the framework tick, because a tooltip that is
+/// merely hidden stops drawing without telling anyone.
 /// </remarks>
 public sealed unsafe class ItemTooltipNames : IDisposable
 {
@@ -27,10 +28,9 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private readonly Configuration config;
     private readonly NameCatalog names;
     private readonly TooltipForensics forensics;
-    private readonly NamePanel panel = new();
+    private readonly List<NamePanel> panels = [];
 
-    private string[] lines = [];
-    private string? tag;
+    private List<Section> sections = [];
     private GameLanguage? selected;
     private bool enabled;
     private bool disposed;
@@ -41,6 +41,10 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         this.config = config;
         this.names = names;
         this.forensics = forensics;
+
+        // One per language, made up front so the column never allocates an addon mid-hover.
+        for (var i = 0; i < Enum.GetValues<GameLanguage>().Length; i++)
+            panels.Add(new NamePanel(i));
     }
 
     public bool Enabled => enabled;
@@ -83,7 +87,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             Hide();
         }
 
-        panel.Dispose();
+        foreach (var panel in panels)
+            panel.Dispose();
     }
 
     private static AtkUnitBase* Tooltip()
@@ -96,11 +101,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
     private void Rebuild()
     {
-        (tag, lines) = Compose();
-        forensics.Write($"name panel: {lines.Length} lines tag={tag ?? "all"}");
+        sections = Compose();
+        forensics.Write($"name panels: {sections.Count}");
 
-        if (lines.Length > 0)
-            panel.SetContent(tag, lines);
+        for (var i = 0; i < sections.Count; i++)
+            panels[i].SetContent(sections[i].Tag, sections[i].Lines);
     }
 
     /// <summary>
@@ -201,79 +206,140 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         if (config.CycleLanguagesWithScroll)
             StepOnScroll();
 
-        if (lines.Length == 0)
+        if (sections.Count == 0)
         {
             Hide();
             return;
         }
 
-        var scale = tooltip->Scale;
-        var size = NamePanel.SizeFor(tag, lines);
-
-        if (!panel.IsOpen)
-        {
-            panel.Size = size;
-            panel.Open();
-        }
-
-        panel.SetWindowSize(size);
-        panel.SetWindowPosition(Beside(tooltip, scale, size, config.TooltipPanelGap));
-        panel.SuppressInput();
+        Lay(tooltip);
     }
 
     /// <summary>
-    /// To the right of the tooltip, flipping to the left when there is no room for it there.
+    /// Stacks the panels top to bottom beside the tooltip, lifting the column when it would run off
+    /// the bottom of the screen.
     /// </summary>
-    private static Vector2 Beside(AtkUnitBase* tooltip, float scale, Vector2 size, float gap)
+    private void Lay(AtkUnitBase* tooltip)
     {
-        var width = tooltip->RootNode->Width * scale;
-        var right = tooltip->X + width + gap;
+        var gap = config.TooltipPanelGap;
+        var sizes = new Vector2[sections.Count];
+        var total = 0f;
+
+        for (var i = 0; i < sections.Count; i++)
+        {
+            sizes[i] = NamePanel.SizeFor(sections[i].Tag, sections[i].Lines);
+            total += sizes[i].Y + (i > 0 ? gap : 0f);
+        }
+
+        var widest = 0f;
+        foreach (var size in sizes)
+            widest = Math.Max(widest, size.X);
+
+        var x = ColumnX(tooltip, widest, gap);
+        var y = (float)tooltip->Y;
+
+        var screenHeight = Device.Instance()->Height;
+        if (y + total > screenHeight)
+            y = Math.Max(0f, screenHeight - total);
+
+        for (var i = 0; i < panels.Count; i++)
+        {
+            var panel = panels[i];
+
+            if (i >= sections.Count)
+            {
+                if (panel.IsOpen)
+                    panel.Close();
+
+                continue;
+            }
+
+            if (!panel.IsOpen)
+            {
+                panel.Size = sizes[i];
+                panel.Open();
+            }
+
+            panel.SetWindowSize(sizes[i]);
+            panel.SetWindowPosition(new Vector2(x, y));
+            panel.SuppressInput();
+
+            y += sizes[i].Y + gap;
+        }
+    }
+
+    /// <summary>
+    /// The column sits to the right of the tooltip, flipping to the left when there is no room.
+    /// </summary>
+    private static float ColumnX(AtkUnitBase* tooltip, float width, float gap)
+    {
+        var tooltipWidth = tooltip->RootNode->Width * tooltip->Scale;
+        var right = tooltip->X + tooltipWidth + gap;
 
         // The game's own back buffer, not ImGui's viewport - this runs on the framework tick,
         // where there is no ImGui context to ask.
         var screenWidth = Device.Instance()->Width;
-        if (right + size.X > screenWidth)
-            return new Vector2(Math.Max(0f, tooltip->X - size.X - gap), tooltip->Y);
+        if (right + width > screenWidth)
+            return Math.Max(0f, tooltip->X - width - gap);
 
-        return new Vector2(right, tooltip->Y);
+        return right;
     }
 
     /// <summary>
-    /// Closes the panel rather than just hiding it. An addon that is merely invisible is still in
-    /// the game's hit testing, and this one opens above the interface, so leaving it around swallows
-    /// mouseovers for everything beneath it.
+    /// Closes the panels rather than just hiding them. An addon that is merely invisible is still in
+    /// the game's hit testing, and these open above the interface, so leaving them around swallows
+    /// mouseovers for everything beneath.
     /// </summary>
     private void Hide()
     {
-        if (panel.IsOpen)
-            panel.Close();
+        foreach (var panel in panels)
+        {
+            if (panel.IsOpen)
+                panel.Close();
+        }
     }
 
-    private (string? Tag, string[] Lines) Compose()
+    private List<Section> Compose()
     {
+        var sections = new List<Section>();
+
         if (!config.DecorateTooltip)
-            return (null, []);
+            return sections;
 
         var itemId = (uint)Plugin.GameGui.HoveredItem;
         if (itemId == 0)
-            return (null, []);
+            return sections;
 
         var client = names.GetItem(NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage), itemId);
         if (client.Name is null)
-            return (null, []);
-
-        if (!config.CycleLanguagesWithScroll)
-            return (null, ComposeAll(itemId, client));
+            return sections;
 
         var cycle = Cycle();
         if (cycle.Count == 0)
-            return (null, []);
+            return sections;
 
-        // A language can leave the cycle while it is the one being shown.
-        if (selected is null || !cycle.Contains(selected.Value))
-            selected = cycle[0];
+        if (config.CycleLanguagesWithScroll)
+        {
+            // A language can leave the cycle while it is the one being shown.
+            if (selected is null || !cycle.Contains(selected.Value))
+                selected = cycle[0];
 
-        return (selected.Value.ToString(), ComposeOne(itemId, selected.Value, client));
+            Append(sections, itemId, selected.Value, client);
+            return sections;
+        }
+
+        foreach (var language in cycle)
+            Append(sections, itemId, language, client);
+
+        return sections;
+    }
+
+    /// <summary>Adds a panel's worth of text for one language, unless it has nothing to add.</summary>
+    private void Append(List<Section> sections, uint itemId, GameLanguage language, ItemNames client)
+    {
+        var lines = ComposeOne(itemId, language, client);
+        if (lines.Length > 0)
+            sections.Add(new Section(language.ToString(), lines));
     }
 
     /// <summary>One language's text for each block that is switched on.</summary>
@@ -304,44 +370,5 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         block.Add(text);
     }
 
-    private string[] ComposeAll(uint itemId, ItemNames client)
-    {
-        var block = new List<string>();
-
-        if (config.ShowItemName && client.Name is not null)
-            AddSection(block, itemId, client.Name, static item => item.Name);
-
-        if (config.ShowItemCategory && client.Category is not null)
-            AddSection(block, itemId, client.Category, static item => item.Category);
-
-        if (config.ShowItemDescription && client.Description is not null)
-            AddSection(block, itemId, client.Description, static item => item.Description);
-
-        return block.ToArray();
-    }
-
-
-    /// <summary>
-    /// Adds one block's translations, separated from the block before it by a blank line. The first
-    /// line composed is the text the game already drew, so it is dropped.
-    /// </summary>
-    private void AddSection(List<string> block, uint itemId, string clientText, Func<ItemNames, string?> pick)
-    {
-        var candidates = new Dictionary<GameLanguage, string?>();
-        foreach (var entry in config.Languages)
-        {
-            if (entry.Enabled)
-                candidates[entry.Language] = pick(names.GetItem(entry.Language, itemId));
-        }
-
-        var composed = LineComposer.BuildLines(clientText, candidates, config.Languages, config.HideDuplicates);
-        if (composed.Count <= 1)
-            return;
-
-        if (block.Count > 0)
-            block.Add(string.Empty);
-
-        for (var i = 1; i < composed.Count; i++)
-            block.Add(composed[i]);
-    }
+    private readonly record struct Section(string Tag, string[] Lines);
 }

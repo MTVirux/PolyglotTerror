@@ -38,9 +38,11 @@ the tooltip means relaying its header out and moving every row beneath, so the p
 game's own layout untouched entirely. It follows the tooltip and hides with it, including when you
 hold Alt. Action tooltips still have their lines appended to the tooltip text itself.
 
-By default the panel shows one language at a time, named at the top, and the scroll wheel steps
-through the rest while an item is hovered. The wheel is only read, not taken, so whatever is under
-the cursor still scrolls with it. Turn the option off to see every language listed at once instead.
+By default one panel is shown at a time, named at the top, and the scroll wheel steps through the
+languages while an item is hovered. The wheel is only read, not taken, so whatever is under the
+cursor still scrolls with it. Turn the option off and every language gets its own panel instead,
+stacked top to bottom in the order you set. The column lifts itself when it would run off the
+bottom of the screen.
 
 ## Languages
 
