@@ -9,8 +9,7 @@ using PolyglotTerror.Core;
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// WORK IN PROGRESS - not wired up, same as <see cref="ItemTooltipDecorator"/>.
-/// The action tooltip counterpart of <see cref="ItemTooltipDecorator"/>. Covers everything the
+/// Appends extra language lines to the action tooltip's backing string array. Covers everything the
 /// game routes through ActionDetail: combat actions and traits, general and main commands,
 /// chocobo actions, mounts, minions and fashion accessories.
 /// </summary>
@@ -20,13 +19,15 @@ public sealed unsafe class ActionTooltipDecorator : IDisposable
 
     private readonly Configuration config;
     private readonly NameCatalog names;
-    private readonly TooltipSlot nameSlot = new();
-    private readonly TooltipSlot descriptionSlot = new();
+    private readonly TooltipSlot nameSlot;
+    private readonly TooltipSlot descriptionSlot;
 
-    public ActionTooltipDecorator(Configuration config, NameCatalog names)
+    public ActionTooltipDecorator(Configuration config, NameCatalog names, TooltipForensics forensics)
     {
         this.config = config;
         this.names = names;
+        nameSlot = new TooltipSlot(forensics, "action name");
+        descriptionSlot = new TooltipSlot(forensics, "action description");
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
     }

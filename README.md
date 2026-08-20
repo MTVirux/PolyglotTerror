@@ -31,11 +31,18 @@ All names are read from the game client's own Excel data through Lumina, so they
 
 The party list shows the primary language only. Everything else shows the full stack of enabled languages, in the order you set in the settings window.
 
-## Not finished yet
+## Tooltips
 
-Item and action tooltips are work in progress and currently do nothing. The game gives a tooltip's
-name a fixed two-line region, so extra lines render over the row beneath it, and making room means
-relaying out the addon. Their settings are still listed but greyed out.
+Item translations are shown in a panel beside the tooltip rather than inside it. Putting them in
+the tooltip means relaying its header out and moving every row beneath, so the panel leaves the
+game's own layout untouched entirely. It follows the tooltip and hides with it, including when you
+hold Alt. Action tooltips still have their lines appended to the tooltip text itself.
+
+By default one panel is shown at a time, named at the top, and the scroll wheel steps through the
+languages while an item is hovered. The wheel is only read, not taken, so whatever is under the
+cursor still scrolls with it. Turn the option off and every language gets its own panel instead,
+stacked top to bottom in the order you set. The column lifts itself when it would run off the
+bottom of the screen.
 
 ## Languages
 

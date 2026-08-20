@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using KamiToolKit;
 using PolyglotTerror.Game;
 using PolyglotTerror.Windows;
 
@@ -23,16 +24,29 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IChatGui Chat { get; private set; } = null!;
+    [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
     private readonly AddonInspector inspector = new();
+    private readonly TooltipForensics forensics;
     private readonly ConfigWindow configWindow;
     private readonly CastBarDecorator castBars;
+    private readonly ActionTooltipDecorator actionTooltips;
+    private readonly ItemTooltipNames itemNames;
 
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Migrate();
+
+        forensics = new TooltipForensics();
+        inspector.AlsoWriteTo(forensics);
+
+        // Every structural change to a tooltip goes through KamiToolKit, so it has to be up before
+        // anything that builds a node or a controller.
+        KamiToolKitLibrary.Initialize(PluginInterface);
 
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
@@ -40,13 +54,17 @@ public sealed class Plugin : IDalamudPlugin
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        // Tooltip decoration is work in progress and deliberately not wired up. The game gives a
-        // tooltip's name a fixed two-line region, so extra lines render over the row beneath it and
-        // making room means relaying out the addon. Its settings stay visible but inert.
+        actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
+
+        itemNames = new ItemTooltipNames(Configuration, Names, forensics, inspector);
+
+        // Plugin construction is not on the framework thread, and KamiToolKit asserts on it the
+        // moment it touches an addon.
+        Framework.RunOnFrameworkThread(() => itemNames.SetEnabled(true));
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip's, \"/polyglot kami\" toggles the tooltip name panel.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -65,6 +83,10 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
         castBars.Dispose();
+        actionTooltips.Dispose();
+        itemNames.Dispose();
+        KamiToolKitLibrary.Dispose();
+        forensics.Dispose();
     }
 
     private void RegisterCastBars()
@@ -99,7 +121,20 @@ public sealed class Plugin : IDalamudPlugin
 
         if (parts.Length == 2 && parts[0] == "dump" && parts[1] == "item")
         {
-            Log.Information("Tooltip decoration is work in progress and switched off, so there is nothing to dump.");
+            itemNames.ArmDump();
+            Chat.Print("PolyglotTerror: armed - hover an item to dump its tooltip.");
+            return;
+        }
+
+        if (parts.Length >= 1 && parts[0] == "kami")
+        {
+            // Command handlers already run on the framework thread, which is where KamiToolKit
+            // insists on being called from.
+            itemNames.SetEnabled(!itemNames.Enabled);
+
+            var state = itemNames.Enabled ? "enabled" : "disabled";
+            Chat.Print($"PolyglotTerror: tooltip name panel {state}.");
+            Log.Information($"Tooltip name panel {state}.");
             return;
         }
 

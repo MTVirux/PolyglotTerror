@@ -73,10 +73,7 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawTooltips()
     {
-        Heading("Tooltips (work in progress)");
-
-        ImGui.TextDisabled("Tooltip translation is unfinished and currently does nothing in game.");
-        ImGui.BeginDisabled();
+        Heading("Tooltips");
 
         Option("Item name", configuration.ShowItemName, value => configuration.ShowItemName = value);
         Option("Item category", configuration.ShowItemCategory, value => configuration.ShowItemCategory = value);
@@ -84,18 +81,34 @@ public sealed class ConfigWindow : Window, IDisposable
         Option("Action name", configuration.ShowActionName, value => configuration.ShowActionName = value);
         Option("Action description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
 
-        ImGui.TextDisabled("Descriptions in four languages make for a very tall tooltip.");
-        ImGui.EndDisabled();
+        ImGui.TextDisabled("Descriptions in four languages make for a very tall panel.");
+
+        ImGui.Spacing();
+        Option(
+            "Show one language at a time, scroll to change it",
+            configuration.CycleLanguagesWithScroll,
+            value => configuration.CycleLanguagesWithScroll = value);
+
+        ImGui.TextDisabled("Off shows every language at once, one panel each, stacked top to bottom.");
+        ImGui.TextDisabled("Scrolling still scrolls whatever is under the cursor as well.");
+
+        ImGui.Spacing();
+        ImGui.TextDisabled("Item translations appear beside the tooltip, and hide with it.");
+
+        var gap = configuration.TooltipPanelGap;
+        if (ImGui.SliderInt("Gap beside the tooltip", ref gap, Configuration.MinTooltipPanelGap, Configuration.MaxTooltipPanelGap))
+        {
+            configuration.TooltipPanelGap = gap;
+            Apply();
+        }
     }
 
     private void DrawSurfaces()
     {
         Heading("Where to show translations");
 
-        ImGui.BeginDisabled();
-        Option("Item tooltips (work in progress)", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
-        Option("Action tooltips (work in progress)", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
-        ImGui.EndDisabled();
+        Option("Item tooltips", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
+        Option("Action tooltips", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
         Option("Your own cast bar", configuration.DecorateOwnCastBar, value => configuration.DecorateOwnCastBar = value);
         Option("Target and focus target cast bars", configuration.DecorateTargetBars, value => configuration.DecorateTargetBars = value);
         Option("Cast bars over enemies", configuration.DecorateOverheadBars, value => configuration.DecorateOverheadBars = value);

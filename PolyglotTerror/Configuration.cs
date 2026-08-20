@@ -9,15 +9,17 @@ namespace PolyglotTerror;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
+    private const int CurrentVersion = 2;
+
     public const int MinCastBarTextOffset = -40;
 
     public const int MaxCastBarTextOffset = 40;
 
-    public const int MinTooltipNameSpace = 0;
+    public const int MinTooltipPanelGap = 0;
 
-    public const int MaxTooltipNameSpace = 40;
+    public const int MaxTooltipPanelGap = 40;
 
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
 
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public List<LanguageEntry> Languages { get; set; } =
@@ -53,25 +55,20 @@ public class Configuration : IPluginConfiguration
     public bool HideDuplicates { get; set; } = true;
 
     /// <summary>
+    /// Shows one language at a time in the panel, stepped through with the scroll wheel while an
+    /// item is hovered, rather than stacking every enabled language at once.
+    /// </summary>
+    public bool CycleLanguagesWithScroll { get; set; } = true;
+
+    /// <summary>
     /// Moves the cast bar text up or down without resizing the bar itself.
     /// </summary>
     public int CastBarTextOffset { get; set; }
 
     /// <summary>
-    /// Tooltip resizing is disabled for now: the settings below are kept so saved configs survive,
-    /// but nothing reads them and TooltipHeaderExpander is not wired up.
+    /// Distance between a tooltip and the panel of translated names beside it.
     /// </summary>
-    public bool ExpandTooltipName { get; set; }
-
-    /// <summary>
-    /// Extra room added under the last line of a tooltip's name block.
-    /// </summary>
-    public int TooltipNameExtraSpace { get; set; }
-
-    /// <summary>
-    /// Pushes a tooltip's name block down, growing the header by the same amount.
-    /// </summary>
-    public int TooltipNameTopOffset { get; set; }
+    public int TooltipPanelGap { get; set; } = 8;
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or
