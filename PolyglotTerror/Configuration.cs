@@ -55,6 +55,12 @@ public class Configuration : IPluginConfiguration
     public bool HideDuplicates { get; set; } = true;
 
     /// <summary>
+    /// Shows one language at a time in the panel, stepped through with the scroll wheel while an
+    /// item is hovered, rather than stacking every enabled language at once.
+    /// </summary>
+    public bool CycleLanguagesWithScroll { get; set; } = true;
+
+    /// <summary>
     /// Moves the cast bar text up or down without resizing the bar itself.
     /// </summary>
     public int CastBarTextOffset { get; set; }

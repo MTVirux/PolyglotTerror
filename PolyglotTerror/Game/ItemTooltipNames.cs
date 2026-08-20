@@ -6,6 +6,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using PolyglotTerror.Core;
 
@@ -29,6 +30,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private readonly NamePanel panel = new();
 
     private string[] lines = [];
+    private string? tag;
+    private GameLanguage? selected;
     private bool enabled;
     private bool disposed;
     private bool altWasHeld;
@@ -88,11 +91,55 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
     private void OnRequestedUpdate(AddonEvent type, AddonArgs args)
     {
-        lines = ComposeLines();
-        forensics.Write($"name panel: {lines.Length} lines");
+        Rebuild();
+    }
+
+    private void Rebuild()
+    {
+        (tag, lines) = Compose();
+        forensics.Write($"name panel: {lines.Length} lines tag={tag ?? "all"}");
 
         if (lines.Length > 0)
-            panel.SetLines(lines);
+            panel.SetContent(tag, lines);
+    }
+
+    /// <summary>
+    /// The languages the wheel steps through: the enabled ones, minus the client's own, which the
+    /// tooltip is already showing.
+    /// </summary>
+    private List<GameLanguage> Cycle()
+    {
+        var client = NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage);
+        var cycle = new List<GameLanguage>();
+
+        foreach (var entry in config.Languages)
+        {
+            if (entry.Enabled && entry.Language != client)
+                cycle.Add(entry.Language);
+        }
+
+        return cycle;
+    }
+
+    /// <summary>
+    /// Steps the shown language when the wheel moves. The delta is only read, never swallowed, so
+    /// whatever is under the cursor still scrolls too.
+    /// </summary>
+    private void StepOnScroll()
+    {
+        var wheel = UIInputData.Instance()->CursorInputs.MouseWheel;
+        if (wheel == 0)
+            return;
+
+        var cycle = Cycle();
+        if (cycle.Count == 0)
+            return;
+
+        var current = selected is null ? 0 : Math.Max(0, cycle.IndexOf(selected.Value));
+        var next = (current + (wheel > 0 ? 1 : -1) + cycle.Count) % cycle.Count;
+
+        selected = cycle[next];
+        Rebuild();
     }
 
     /// <summary>
@@ -145,14 +192,23 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         var held = AltHeld;
         LogAltTransition(tooltip, held);
 
-        if (held || !Showing(tooltip) || lines.Length == 0)
+        if (held || !Showing(tooltip))
+        {
+            Hide();
+            return;
+        }
+
+        if (config.CycleLanguagesWithScroll)
+            StepOnScroll();
+
+        if (lines.Length == 0)
         {
             Hide();
             return;
         }
 
         var scale = tooltip->Scale;
-        var size = NamePanel.SizeFor(lines);
+        var size = NamePanel.SizeFor(tag, lines);
 
         if (!panel.IsOpen)
         {
@@ -191,22 +247,66 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             panel.Close();
     }
 
-    private string[] ComposeLines()
+    private (string? Tag, string[] Lines) Compose()
     {
         if (!config.DecorateTooltip)
-            return [];
+            return (null, []);
 
         var itemId = (uint)Plugin.GameGui.HoveredItem;
         if (itemId == 0)
-            return [];
+            return (null, []);
 
         var client = names.GetItem(NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage), itemId);
         if (client.Name is null)
-            return [];
+            return (null, []);
 
+        if (!config.CycleLanguagesWithScroll)
+            return (null, ComposeAll(itemId, client));
+
+        var cycle = Cycle();
+        if (cycle.Count == 0)
+            return (null, []);
+
+        // A language can leave the cycle while it is the one being shown.
+        if (selected is null || !cycle.Contains(selected.Value))
+            selected = cycle[0];
+
+        return (selected.Value.ToString(), ComposeOne(itemId, selected.Value, client));
+    }
+
+    /// <summary>One language's text for each block that is switched on.</summary>
+    private string[] ComposeOne(uint itemId, GameLanguage language, ItemNames client)
+    {
+        var other = names.GetItem(language, itemId);
         var block = new List<string>();
 
-        if (config.ShowItemName)
+        Add(block, config.ShowItemName, other.Name, client.Name);
+        Add(block, config.ShowItemCategory, other.Category, client.Category);
+        Add(block, config.ShowItemDescription, other.Description, client.Description);
+
+        return block.ToArray();
+    }
+
+    private void Add(List<string> block, bool wanted, string? value, string? clientValue)
+    {
+        var text = value?.Trim();
+        if (!wanted || string.IsNullOrEmpty(text))
+            return;
+
+        if (config.HideDuplicates && string.Equals(text, clientValue?.Trim(), StringComparison.Ordinal))
+            return;
+
+        if (block.Count > 0)
+            block.Add(string.Empty);
+
+        block.Add(text);
+    }
+
+    private string[] ComposeAll(uint itemId, ItemNames client)
+    {
+        var block = new List<string>();
+
+        if (config.ShowItemName && client.Name is not null)
             AddSection(block, itemId, client.Name, static item => item.Name);
 
         if (config.ShowItemCategory && client.Category is not null)
@@ -217,6 +317,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
         return block.ToArray();
     }
+
 
     /// <summary>
     /// Adds one block's translations, separated from the block before it by a blank line. The first

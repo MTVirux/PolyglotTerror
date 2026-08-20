@@ -38,6 +38,10 @@ the tooltip means relaying its header out and moving every row beneath, so the p
 game's own layout untouched entirely. It follows the tooltip and hides with it, including when you
 hold Alt. Action tooltips still have their lines appended to the tooltip text itself.
 
+By default the panel shows one language at a time, named at the top, and the scroll wheel steps
+through the rest while an item is hovered. The wheel is only read, not taken, so whatever is under
+the cursor still scrolls with it. Turn the option off to see every language listed at once instead.
+
 ## Languages
 
 English, Japanese, German and French. These are the four the global client ships, so their data is always present regardless of which language the game is set to.

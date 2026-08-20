@@ -21,7 +21,9 @@ public sealed unsafe class NamePanel : NativeAddon
     private const float LineHeight = 20f;
     private const float Padding = 8f;
 
+    private TextNode? tag;
     private TextNode? text;
+    private string pendingTag = string.Empty;
     private string pending = string.Empty;
 
     [SetsRequiredMembers]
@@ -41,17 +43,37 @@ public sealed unsafe class NamePanel : NativeAddon
         DepthLayer = OverlayLayer.AboveUserInterface.DepthLayer;
     }
 
-    /// <summary>The size this panel wants for the lines it is holding.</summary>
-    public static Vector2 SizeFor(string[] lines)
-        => new(280f, Math.Max(1, lines.Length) * LineHeight + (Padding * 4f));
-
-    public void SetLines(string[] lines)
+    /// <summary>The size this panel wants for what it is holding.</summary>
+    public static Vector2 SizeFor(string? tag, string[] lines)
     {
+        var rows = Math.Max(1, lines.Length) + (string.IsNullOrEmpty(tag) ? 0 : 1);
+        return new Vector2(280f, (rows * LineHeight) + (Padding * 4f));
+    }
+
+    /// <summary>
+    /// Sets what the panel shows. <paramref name="languageTag"/> is null when every language is
+    /// listed at once and there is no single one to name.
+    /// </summary>
+    public void SetContent(string? languageTag, string[] lines)
+    {
+        pendingTag = languageTag ?? string.Empty;
         pending = string.Join('\n', lines);
 
+        if (tag is not null)
+        {
+            tag.String = pendingTag;
+            tag.IsVisible = pendingTag.Length > 0;
+        }
+
         if (text is not null)
+        {
+            text.Position = TextStart(pendingTag.Length > 0);
             text.String = pending;
+        }
     }
+
+    private Vector2 TextStart(bool tagged)
+        => ContentStartPosition + new Vector2(0f, tagged ? LineHeight : 0f);
 
     /// <summary>
     /// Shows or hides the panel without opening or closing it.
@@ -71,9 +93,25 @@ public sealed unsafe class NamePanel : NativeAddon
 
     protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> values)
     {
-        text = new TextNode
+        tag = new TextNode
         {
             Position = ContentStartPosition,
+            Size = new Vector2(ContentSize.X, LineHeight),
+            FontSize = 11,
+            AlignmentType = AlignmentType.TopLeft,
+            TextColor = new Vector4(0.6f, 0.6f, 0.55f, 1f),
+            TextOutlineColor = new Vector4(0f, 0f, 0f, 1f),
+            TextFlags = TextFlags.Edge,
+            String = pendingTag,
+            IsVisible = pendingTag.Length > 0,
+        };
+
+        tag.RemoveNodeFlags(NodeFlags.RespondToMouse, NodeFlags.EmitsEvents, NodeFlags.HasCollision);
+        AddNode(tag);
+
+        text = new TextNode
+        {
+            Position = TextStart(pendingTag.Length > 0),
             Size = ContentSize,
             FontSize = 12,
             AlignmentType = AlignmentType.TopLeft,

@@ -84,6 +84,14 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.TextDisabled("Descriptions in four languages make for a very tall panel.");
 
         ImGui.Spacing();
+        Option(
+            "Show one language at a time, scroll to change it",
+            configuration.CycleLanguagesWithScroll,
+            value => configuration.CycleLanguagesWithScroll = value);
+
+        ImGui.TextDisabled("Scrolling still scrolls whatever is under the cursor as well.");
+
+        ImGui.Spacing();
         ImGui.TextDisabled("Item translations appear in a panel beside the tooltip, and hide with it.");
 
         var gap = configuration.TooltipPanelGap;
