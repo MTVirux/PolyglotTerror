@@ -9,17 +9,18 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using PolyglotTerror.Core;
+using PolyglotTerror.Windows;
 
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// Keeps a column of <see cref="NamePanel"/> beside the item tooltip, one per language, filled with
-/// the hovered item's names.
+/// Keeps <see cref="NamePanelWindow"/> beside the item tooltip and filled with the hovered item's
+/// names, one block per language.
 /// </summary>
 /// <remarks>
-/// The tooltip's own nodes are never written to. Content is picked up when the game refreshes the
-/// tooltip; the panels are placed and closed from the framework tick, because a tooltip that is
-/// merely hidden stops drawing without telling anyone.
+/// The tooltip's own nodes are never touched. Content is picked up when the game refreshes the
+/// tooltip; the panel is placed and hidden from the framework tick, because a tooltip that is merely
+/// hidden stops drawing without telling anyone.
 /// </remarks>
 public sealed unsafe class ItemTooltipNames : IDisposable
 {
@@ -30,9 +31,9 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private readonly NameCatalog names;
     private readonly TooltipForensics forensics;
     private readonly AddonInspector inspector;
-    private readonly List<NamePanel> panels = [];
+    private readonly NamePanelWindow window;
 
-    private List<Section> sections = [];
+    private List<NameSection> sections = [];
     private GameLanguage? selected;
     private string state = string.Empty;
     private int idleFrames;
@@ -41,16 +42,18 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private bool disposed;
     private bool altWasHeld;
 
-    public ItemTooltipNames(Configuration config, NameCatalog names, TooltipForensics forensics, AddonInspector inspector)
+    public ItemTooltipNames(
+        Configuration config,
+        NameCatalog names,
+        TooltipForensics forensics,
+        AddonInspector inspector,
+        NamePanelWindow window)
     {
         this.config = config;
         this.names = names;
         this.forensics = forensics;
         this.inspector = inspector;
-
-        // One per language, made up front so the column never allocates an addon mid-hover.
-        for (var i = 0; i < Enum.GetValues<GameLanguage>().Length; i++)
-            panels.Add(new NamePanel(i));
+        this.window = window;
     }
 
     public bool Enabled => enabled;
@@ -61,10 +64,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     /// </summary>
     public void ArmDump() => dumpArmed = true;
 
-    /// <summary>
-    /// Must be called on the framework thread - KamiToolKit asserts on it whenever it opens or
-    /// closes an addon.
-    /// </summary>
     public void SetEnabled(bool value)
     {
         if (disposed || value == enabled)
@@ -99,8 +98,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             Hide();
         }
 
-        foreach (var panel in panels)
-            panel.Dispose();
+        Hide();
     }
 
     private static AtkUnitBase* Tooltip()
@@ -121,9 +119,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     {
         sections = Compose();
         forensics.Write($"name panels: {sections.Count}");
-
-        for (var i = 0; i < sections.Count; i++)
-            panels[i].SetContent(sections[i].Tag, sections[i].Lines);
+        window.SetSections(sections);
     }
 
     /// <summary>
@@ -234,7 +230,9 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
         idleFrames = 0;
         Note("laying out");
-        Lay(tooltip);
+
+        window.Anchor = Beside(tooltip, config.TooltipPanelGap);
+        window.IsOpen = true;
     }
 
     /// <summary>
@@ -263,66 +261,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     }
 
     /// <summary>
-    /// Stacks the panels top to bottom beside the tooltip, lifting the column when it would run off
-    /// the bottom of the screen.
+    /// To the right of the tooltip, flipping to the left when there is no room for it there.
     /// </summary>
-    private void Lay(AtkUnitBase* tooltip)
+    private static Vector2 Beside(AtkUnitBase* tooltip, float gap)
     {
-        var gap = config.TooltipPanelGap;
-        var sizes = new Vector2[sections.Count];
-        var total = 0f;
-
-        for (var i = 0; i < sections.Count; i++)
-        {
-            sizes[i] = NamePanel.SizeFor(sections[i].Tag, sections[i].Lines);
-            total += sizes[i].Y + (i > 0 ? gap : 0f);
-        }
-
-        var widest = 0f;
-        foreach (var size in sizes)
-            widest = Math.Max(widest, size.X);
-
-        var x = ColumnX(tooltip, widest, gap);
-        var y = (float)tooltip->Y;
-
-        var screenHeight = Device.Instance()->Height;
-        if (y + total > screenHeight)
-            y = Math.Max(0f, screenHeight - total);
-
-        for (var i = 0; i < panels.Count; i++)
-        {
-            var panel = panels[i];
-
-            if (i >= sections.Count)
-            {
-                if (panel.IsOpen)
-                    panel.Close();
-
-                continue;
-            }
-
-            if (!panel.IsOpen)
-            {
-                panel.Size = sizes[i];
-                panel.Open();
-                forensics.Write(
-                    $"panels: opened {i} isOpen={panel.IsOpen} at {x:F0},{y:F0} " +
-                    $"size {sizes[i].X:F0}x{sizes[i].Y:F0}");
-            }
-
-            panel.SetWindowSize(sizes[i]);
-            panel.SetWindowPosition(new Vector2(x, y));
-            panel.SuppressInput();
-
-            y += sizes[i].Y + gap;
-        }
-    }
-
-    /// <summary>
-    /// The column sits to the right of the tooltip, flipping to the left when there is no room.
-    /// </summary>
-    private static float ColumnX(AtkUnitBase* tooltip, float width, float gap)
-    {
+        var width = NamePanelWindow.ExpectedWidth;
         var tooltipWidth = tooltip->RootNode->Width * tooltip->Scale;
         var right = tooltip->X + tooltipWidth + gap;
 
@@ -330,28 +273,16 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         // where there is no ImGui context to ask.
         var screenWidth = Device.Instance()->Width;
         if (right + width > screenWidth)
-            return Math.Max(0f, tooltip->X - width - gap);
+            return new Vector2(Math.Max(0f, tooltip->X - width - gap), tooltip->Y);
 
-        return right;
+        return new Vector2(right, tooltip->Y);
     }
 
-    /// <summary>
-    /// Closes the panels rather than just hiding them. An addon that is merely invisible is still in
-    /// the game's hit testing, and these open above the interface, so leaving them around swallows
-    /// mouseovers for everything beneath.
-    /// </summary>
-    private void Hide()
-    {
-        foreach (var panel in panels)
-        {
-            if (panel.IsOpen)
-                panel.Close();
-        }
-    }
+    private void Hide() => window.IsOpen = false;
 
-    private List<Section> Compose()
+    private List<NameSection> Compose()
     {
-        var sections = new List<Section>();
+        var sections = new List<NameSection>();
 
         if (!config.DecorateTooltip)
             return sections;
@@ -385,11 +316,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     }
 
     /// <summary>Adds a panel's worth of text for one language, unless it has nothing to add.</summary>
-    private void Append(List<Section> sections, uint itemId, GameLanguage language, ItemNames client)
+    private void Append(List<NameSection> sections, uint itemId, GameLanguage language, ItemNames client)
     {
         var lines = ComposeOne(itemId, language, client);
         if (lines.Length > 0)
-            sections.Add(new Section(language.ToString(), lines));
+            sections.Add(new NameSection(language.ToString(), lines));
     }
 
     /// <summary>One language's text for each block that is switched on.</summary>
@@ -420,5 +351,4 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         block.Add(text);
     }
 
-    private readonly record struct Section(string Tag, string[] Lines);
 }

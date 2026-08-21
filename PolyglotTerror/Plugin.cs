@@ -4,7 +4,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using KamiToolKit;
 using PolyglotTerror.Game;
 using PolyglotTerror.Windows;
 
@@ -32,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AddonInspector inspector = new();
     private readonly TooltipForensics forensics;
     private readonly ConfigWindow configWindow;
+    private readonly NamePanelWindow namePanel = new();
     private readonly CastBarDecorator castBars;
     private readonly ActionTooltipDecorator actionTooltips;
     private readonly ItemTooltipNames itemNames;
@@ -44,27 +44,22 @@ public sealed class Plugin : IDalamudPlugin
         forensics = new TooltipForensics();
         inspector.AlsoWriteTo(forensics);
 
-        // Every structural change to a tooltip goes through KamiToolKit, so it has to be up before
-        // anything that builds a node or a controller.
-        KamiToolKitLibrary.Initialize(PluginInterface);
-
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
+        windowSystem.AddWindow(namePanel);
 
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
         actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
 
-        itemNames = new ItemTooltipNames(Configuration, Names, forensics, inspector);
+        itemNames = new ItemTooltipNames(Configuration, Names, forensics, inspector, namePanel);
 
-        // Plugin construction is not on the framework thread, and KamiToolKit asserts on it the
-        // moment it touches an addon.
-        Framework.RunOnFrameworkThread(() => itemNames.SetEnabled(true));
+        itemNames.SetEnabled(true);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip's, \"/polyglot kami\" toggles the tooltip name panel.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip's, \"/polyglot panel\" toggles the tooltip name panel.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -85,7 +80,6 @@ public sealed class Plugin : IDalamudPlugin
         castBars.Dispose();
         actionTooltips.Dispose();
         itemNames.Dispose();
-        KamiToolKitLibrary.Dispose();
         forensics.Dispose();
     }
 
@@ -126,10 +120,8 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        if (parts.Length >= 1 && parts[0] == "kami")
+        if (parts.Length >= 1 && (parts[0] == "panel" || parts[0] == "kami"))
         {
-            // Command handlers already run on the framework thread, which is where KamiToolKit
-            // insists on being called from.
             itemNames.SetEnabled(!itemNames.Enabled);
 
             var state = itemNames.Enabled ? "enabled" : "disabled";

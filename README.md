@@ -41,8 +41,7 @@ hold Alt. Action tooltips still have their lines appended to the tooltip text it
 By default one panel is shown at a time, named at the top, and the scroll wheel steps through the
 languages while an item is hovered. The wheel is only read, not taken, so whatever is under the
 cursor still scrolls with it. Turn the option off and every language gets its own panel instead,
-stacked top to bottom in the order you set. The column lifts itself when it would run off the
-bottom of the screen.
+stacked top to bottom in the order you set.
 
 ## Languages
 
