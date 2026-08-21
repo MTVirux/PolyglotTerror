@@ -37,6 +37,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private string state = string.Empty;
     private int idleFrames;
     private bool dumpArmed;
+    private bool styleLogged;
     private bool enabled;
     private bool disposed;
     private bool altWasHeld;
@@ -305,6 +306,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             {
                 panel.Size = sizes[i];
                 panel.Open();
+                ApplyTooltipStyle(panel, tooltip);
                 forensics.Write(
                     $"panels: opened {i} isOpen={panel.IsOpen} at {x:F0},{y:F0} " +
                     $"size {sizes[i].X:F0}x{sizes[i].Y:F0}");
@@ -316,6 +318,61 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
             y += sizes[i].Y + gap;
         }
+    }
+
+    /// <summary>
+    /// Gives a freshly opened panel the same nine grid settings the tooltip's own background uses.
+    /// </summary>
+    /// <remarks>
+    /// The corner offsets the game picks only look right under its own render mode; anything else
+    /// repeats the texture across the middle instead of stretching it.
+    /// </remarks>
+    private void ApplyTooltipStyle(NamePanel panel, AtkUnitBase* tooltip)
+    {
+        var background = Background(tooltip);
+        if (background == null)
+            return;
+
+        panel.ApplyBackgroundStyle(background->PartsTypeRenderType, background->BlendMode);
+
+        if (styleLogged)
+            return;
+
+        styleLogged = true;
+        forensics.Write(
+            $"panels: copied background render={background->PartsTypeRenderType} " +
+            $"blend={background->BlendMode} offsets={background->TopOffset},{background->RightOffset}," +
+            $"{background->BottomOffset},{background->LeftOffset}");
+    }
+
+    /// <summary>
+    /// The tooltip's frame: the nine grid filling the component that covers the whole addon. It sits
+    /// inside that component's own node list, not the addon's.
+    /// </summary>
+    private static AtkNineGridNode* Background(AtkUnitBase* tooltip)
+    {
+        var manager = &tooltip->UldManager;
+
+        for (var i = 0; i < manager->NodeListCount; i++)
+        {
+            var node = manager->NodeList[i];
+            if (node == null || (ushort)node->Type < 1000)
+                continue;
+
+            var component = ((AtkComponentNode*)node)->Component;
+            if (component == null)
+                continue;
+
+            var inner = &component->UldManager;
+            for (var j = 0; j < inner->NodeListCount; j++)
+            {
+                var child = inner->NodeList[j];
+                if (child != null && child->Type == NodeType.NineGrid)
+                    return (AtkNineGridNode*)child;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

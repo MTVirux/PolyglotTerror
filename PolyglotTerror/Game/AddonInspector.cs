@@ -106,7 +106,9 @@ public sealed unsafe class AddonInspector
                 var grid = (AtkNineGridNode*)node;
                 list = grid->PartsList;
                 partId = grid->PartId;
-                offsets = $" offsets={grid->TopOffset},{grid->RightOffset},{grid->BottomOffset},{grid->LeftOffset}";
+                offsets =
+                    $" offsets={grid->TopOffset},{grid->RightOffset},{grid->BottomOffset},{grid->LeftOffset}" +
+                    $" render={grid->PartsTypeRenderType} blend={grid->BlendMode}";
                 break;
 
             case NodeType.Image:

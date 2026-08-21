@@ -82,6 +82,13 @@ public sealed unsafe class NamePanel : NativeAddon
     /// <summary>Re-applies the hit testing opt-out, which the window restores when it is resized.</summary>
     public void SuppressInput() => MakeNonInteractive(this);
 
+    /// <summary>Takes the background's render and blend modes from the tooltip's own.</summary>
+    public void ApplyBackgroundStyle(byte renderType, uint blendMode)
+    {
+        if (WindowNode is PanelWindowNode panel)
+            panel.ApplyStyle(renderType, blendMode);
+    }
+
     protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> values)
     {
         tag = new TextNode

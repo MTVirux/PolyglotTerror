@@ -52,6 +52,20 @@ public sealed class PanelWindowNode : WindowNodeBase
 
     public override ResNode WindowHeaderFocusNode => focusStandIn;
 
+    /// <summary>
+    /// Takes the render and blend modes from the tooltip's own background.
+    /// </summary>
+    /// <remarks>
+    /// These decide whether the middle of the nine grid stretches or repeats, and the corner offsets
+    /// the game uses only make sense under its own setting - guessing wrong tiles the whole panel.
+    /// Copying them from the live tooltip also means a patch changing them carries over for free.
+    /// </remarks>
+    public void ApplyStyle(byte renderType, uint blendMode)
+    {
+        background.PartsRenderType = renderType;
+        background.BlendMode = blendMode;
+    }
+
     public override void SetTitle(string title, string? subtitle)
     {
         // There is no header to put a title in.
