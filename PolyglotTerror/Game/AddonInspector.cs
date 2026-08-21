@@ -125,17 +125,27 @@ public sealed unsafe class AddonInspector
             return offsets;
 
         var part = &list->Parts[partId];
-        var rect = $" part={part->U},{part->V} {part->Width}x{part->Height}";
+        var rect = $" partId={partId} part={part->U},{part->V} {part->Width}x{part->Height}";
+
+        // Every part in the list, not just the one this node points at - a nine grid either slices
+        // a single part with its offsets or draws nine of them, and only the rects tell us which.
+        var all = $" parts[{list->PartCount}]=";
+        for (var i = 0; i < list->PartCount && i < 12; i++)
+        {
+            var entry = &list->Parts[i];
+            all += $"({entry->U},{entry->V} {entry->Width}x{entry->Height})";
+        }
+
         var asset = part->UldAsset;
         if (asset == null)
-            return offsets + rect;
+            return offsets + rect + all;
 
         var resource = asset->AtkTexture.Resource;
         if (resource == null || resource->TexFileResourceHandle == null)
-            return offsets + rect;
+            return offsets + rect + all;
 
         var path = resource->TexFileResourceHandle->ResourceHandle.FileName.ToString();
-        return $"{offsets}{rect} tex=\"{path}\"";
+        return $"{offsets}{rect}{all} tex=\"{path}\"";
     }
 
     /// <summary>
