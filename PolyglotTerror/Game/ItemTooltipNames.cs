@@ -329,21 +329,29 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     /// </remarks>
     private void ApplyTooltipStyle(NamePanel panel, AtkUnitBase* tooltip)
     {
-        var background = Background(tooltip);
-        if (background == null)
-            return;
-
-        panel.ApplyBackgroundStyle(background->PartsTypeRenderType, background->BlendMode);
-
         if (styleLogged)
             return;
 
+        forensics.Write("panels: reading tooltip background");
+        var background = Background(tooltip);
+        forensics.Write($"panels: background {(background == null ? "not found" : "found")}");
+
+        if (background == null)
+            return;
+
         styleLogged = true;
+
+        // Read but deliberately not applied. A nine grid's render type can select more parts than a
+        // node owns, and ours holds exactly one - handing it the tooltip's value blind is what took
+        // the game down. The number goes in the log so it can be set as a constant once checked.
         forensics.Write(
-            $"panels: copied background render={background->PartsTypeRenderType} " +
+            $"panels: tooltip background render={background->PartsTypeRenderType} " +
             $"blend={background->BlendMode} offsets={background->TopOffset},{background->RightOffset}," +
-            $"{background->BottomOffset},{background->LeftOffset}");
+            $"{background->BottomOffset},{background->LeftOffset} parts={PartCount(background)}");
     }
+
+    private static int PartCount(AtkNineGridNode* node)
+        => node->PartsList == null ? -1 : (int)node->PartsList->PartCount;
 
     /// <summary>
     /// The tooltip's frame: the nine grid filling the component that covers the whole addon. It sits
@@ -352,6 +360,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private static AtkNineGridNode* Background(AtkUnitBase* tooltip)
     {
         var manager = &tooltip->UldManager;
+        if (manager->NodeList == null)
+            return null;
 
         for (var i = 0; i < manager->NodeListCount; i++)
         {
@@ -363,7 +373,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             if (component == null)
                 continue;
 
+            // A component that has not finished loading reports a count without a list behind it.
             var inner = &component->UldManager;
+            if (inner->NodeList == null)
+                continue;
+
             for (var j = 0; j < inner->NodeListCount; j++)
             {
                 var child = inner->NodeList[j];

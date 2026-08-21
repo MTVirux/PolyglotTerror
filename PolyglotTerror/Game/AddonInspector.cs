@@ -54,7 +54,7 @@ public sealed unsafe class AddonInspector
     /// </summary>
     private void DumpList(AtkUldManager* manager, int depth)
     {
-        if (manager == null || depth > 3)
+        if (manager == null || manager->NodeList == null || depth > 3)
             return;
 
         var indent = new string(' ', (depth + 1) * 2);
