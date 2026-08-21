@@ -39,16 +39,29 @@ public sealed unsafe class AddonInspector
         if (unit == null)
             return;
 
-        var count = unit->UldManager.NodeListCount;
         var root = unit->RootNode;
         var rootSize = root == null ? "none" : $"{root->Width}x{root->Height}";
         Report(
-            $"Addon {addonName}: {count} nodes, visible={unit->IsVisible}, root={rootSize}, " +
+            $"Addon {addonName}: {unit->UldManager.NodeListCount} nodes, visible={unit->IsVisible}, root={rootSize}, " +
             $"scale={unit->Scale}, build={BuildStamp()}");
 
-        for (var i = 0; i < count; i++)
+        DumpList(&unit->UldManager, 0);
+    }
+
+    /// <summary>
+    /// Dumps one node list, stepping into component nodes. A component keeps its own list, so the
+    /// pieces that actually draw a window's frame never appear in the addon's.
+    /// </summary>
+    private void DumpList(AtkUldManager* manager, int depth)
+    {
+        if (manager == null || depth > 3)
+            return;
+
+        var indent = new string(' ', (depth + 1) * 2);
+
+        for (var i = 0; i < manager->NodeListCount; i++)
         {
-            var node = unit->UldManager.NodeList[i];
+            var node = manager->NodeList[i];
             if (node == null)
                 continue;
 
@@ -60,14 +73,20 @@ public sealed unsafe class AddonInspector
             {
                 var text = (AtkTextNode*)node;
                 Report(
-                    $"  [{i}] id={node->NodeId} Text visible={visible} {box} flags={text->TextFlags} " +
+                    $"{indent}[{i}] id={node->NodeId} Text visible={visible} {box} flags={text->TextFlags} " +
                     $"lineSpacing={text->LineSpacing} fontSize={text->FontSize} \"{text->NodeText}\"");
             }
             else
             {
-                Report(
-                    $"  [{i}] id={node->NodeId} {node->Type} visible={visible} {box}{Texture(node)}");
+                Report($"{indent}[{i}] id={node->NodeId} {node->Type} visible={visible} {box}{Texture(node)}");
             }
+
+            if ((ushort)node->Type < 1000)
+                continue;
+
+            var component = ((AtkComponentNode*)node)->Component;
+            if (component != null)
+                DumpList(&component->UldManager, depth + 1);
         }
     }
 
