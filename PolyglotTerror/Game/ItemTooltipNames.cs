@@ -25,6 +25,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 {
     private const string AddonName = "ItemDetail";
     private const int IdleFramesBeforeClose = 10;
+    private const int RequiredParts = 9;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -329,29 +330,54 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     /// </remarks>
     private void ApplyTooltipStyle(NamePanel panel, AtkUnitBase* tooltip)
     {
+        var source = Background(tooltip);
+        if (source == null || source->PartsList == null)
+            return;
+
+        var list = source->PartsList;
+        var count = (int)list->PartCount;
+
+        // Nine is what a nine grid needs. Fewer means this is not the layout the render type
+        // expects, and handing that render type to a shorter list is what crashed the game.
+        if (count < RequiredParts)
+            return;
+
+        var path = TexturePath(&list->Parts[0]);
+        if (path is null)
+            return;
+
+        var rects = new List<Vector4>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var part = &list->Parts[i];
+            rects.Add(new Vector4(part->U, part->V, part->Width, part->Height));
+        }
+
+        panel.ApplyBackgroundStyle(path, rects, source->PartId, source->PartsTypeRenderType, source->BlendMode);
+
         if (styleLogged)
             return;
 
-        forensics.Write("panels: reading tooltip background");
-        var background = Background(tooltip);
-        forensics.Write($"panels: background {(background == null ? "not found" : "found")}");
-
-        if (background == null)
-            return;
-
         styleLogged = true;
-
-        // Read but deliberately not applied. A nine grid's render type can select more parts than a
-        // node owns, and ours holds exactly one - handing it the tooltip's value blind is what took
-        // the game down. The number goes in the log so it can be set as a constant once checked.
         forensics.Write(
-            $"panels: tooltip background render={background->PartsTypeRenderType} " +
-            $"blend={background->BlendMode} offsets={background->TopOffset},{background->RightOffset}," +
-            $"{background->BottomOffset},{background->LeftOffset} parts={PartCount(background)}");
+            $"panels: background copied from \"{path}\" parts={count} partId={source->PartId} " +
+            $"render={source->PartsTypeRenderType} blend={source->BlendMode}");
     }
 
-    private static int PartCount(AtkNineGridNode* node)
-        => node->PartsList == null ? -1 : (int)node->PartsList->PartCount;
+    /// <summary>The texture a part draws from, or null when it has not been loaded.</summary>
+    private static string? TexturePath(AtkUldPart* part)
+    {
+        var asset = part->UldAsset;
+        if (asset == null)
+            return null;
+
+        var resource = asset->AtkTexture.Resource;
+        if (resource == null || resource->TexFileResourceHandle == null)
+            return null;
+
+        var path = resource->TexFileResourceHandle->ResourceHandle.FileName.ToString();
+        return string.IsNullOrEmpty(path) ? null : path;
+    }
 
     /// <summary>
     /// The tooltip's frame: the nine grid filling the component that covers the whole addon. It sits

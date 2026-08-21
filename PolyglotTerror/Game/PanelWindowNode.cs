@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Numerics;
+using KamiToolKit.Classes;
 using KamiToolKit.Enums;
 using KamiToolKit.Nodes;
 using KamiToolKit.Nodes.Simplified;
@@ -53,17 +55,32 @@ public sealed class PanelWindowNode : WindowNodeBase
     public override ResNode WindowHeaderFocusNode => focusStandIn;
 
     /// <summary>
-    /// Takes the render and blend modes from the tooltip's own background.
+    /// Rebuilds the background from the tooltip's own nine grid.
     /// </summary>
     /// <remarks>
-    /// These decide whether the middle of the nine grid stretches or repeats, and the corner offsets
-    /// the game uses only make sense under its own setting - guessing wrong tiles the whole panel.
-    /// Copying them from the live tooltip also means a patch changing them carries over for free.
+    /// A real nine grid is nine separate pieces of the atlas, and the render type tells the game to
+    /// draw all of them. One part with that render type is what crashed the game - the renderer ran
+    /// off the end of the list - so the parts go in first and the render type only after.
     /// </remarks>
-    public void ApplyStyle(byte renderType, uint blendMode)
+    public void ApplyStyle(string texturePath, IReadOnlyList<Vector4> rects, uint partId, byte renderType, uint blendMode)
     {
-        background.PartsRenderType = renderType;
+        var parts = new List<Part>(rects.Count);
+        foreach (var rect in rects)
+        {
+            parts.Add(new Part
+            {
+                TexturePath = texturePath,
+                U = (ushort)rect.X,
+                V = (ushort)rect.Y,
+                Width = (ushort)rect.Z,
+                Height = (ushort)rect.W,
+            });
+        }
+
+        background.Parts = parts;
+        background.PartId = partId;
         background.BlendMode = blendMode;
+        background.PartsRenderType = renderType;
     }
 
     public override void SetTitle(string title, string? subtitle)
