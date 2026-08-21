@@ -25,7 +25,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 {
     private const string AddonName = "ItemDetail";
     private const int IdleFramesBeforeClose = 10;
-    private const int RequiredParts = 9;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -38,7 +37,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private string state = string.Empty;
     private int idleFrames;
     private bool dumpArmed;
-    private bool styleLogged;
     private bool enabled;
     private bool disposed;
     private bool altWasHeld;
@@ -316,116 +314,8 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             panel.SetWindowPosition(new Vector2(x, y));
             panel.SuppressInput();
 
-            // After sizing, so the resize cannot undo it, and retried until it takes - the tooltip's
-            // own background is not always readable on the frame the panel opens.
-            if (!panel.Styled)
-                ApplyTooltipStyle(panel, tooltip);
-
             y += sizes[i].Y + gap;
         }
-    }
-
-    /// <summary>
-    /// Gives a freshly opened panel the same nine grid settings the tooltip's own background uses.
-    /// </summary>
-    /// <remarks>
-    /// The corner offsets the game picks only look right under its own render mode; anything else
-    /// repeats the texture across the middle instead of stretching it.
-    /// </remarks>
-    private void ApplyTooltipStyle(NamePanel panel, AtkUnitBase* tooltip)
-    {
-        var source = Background(tooltip);
-        if (source == null || source->PartsList == null)
-            return;
-
-        var list = source->PartsList;
-        var count = (int)list->PartCount;
-
-        // Nine is what a nine grid needs. Fewer means this is not the layout the render type
-        // expects, and handing that render type to a shorter list is what crashed the game.
-        if (count < RequiredParts)
-            return;
-
-        var path = TexturePath(&list->Parts[0]);
-        if (path is null)
-            return;
-
-        var rects = new List<Vector4>(count);
-        for (var i = 0; i < count; i++)
-        {
-            var part = &list->Parts[i];
-            rects.Add(new Vector4(part->U, part->V, part->Width, part->Height));
-        }
-
-        panel.ApplyBackgroundStyle(
-            path,
-            rects,
-            source->PartId,
-            source->PartsTypeRenderType,
-            source->BlendMode,
-            source->TopOffset,
-            source->RightOffset,
-            source->BottomOffset,
-            source->LeftOffset);
-
-        if (styleLogged)
-            return;
-
-        styleLogged = true;
-        forensics.Write(
-            $"panels: background copied from \"{path}\" parts={count} partId={source->PartId} " +
-            $"render={source->PartsTypeRenderType} blend={source->BlendMode}");
-    }
-
-    /// <summary>The texture a part draws from, or null when it has not been loaded.</summary>
-    private static string? TexturePath(AtkUldPart* part)
-    {
-        var asset = part->UldAsset;
-        if (asset == null)
-            return null;
-
-        var resource = asset->AtkTexture.Resource;
-        if (resource == null || resource->TexFileResourceHandle == null)
-            return null;
-
-        var path = resource->TexFileResourceHandle->ResourceHandle.FileName.ToString();
-        return string.IsNullOrEmpty(path) ? null : path;
-    }
-
-    /// <summary>
-    /// The tooltip's frame: the nine grid filling the component that covers the whole addon. It sits
-    /// inside that component's own node list, not the addon's.
-    /// </summary>
-    private static AtkNineGridNode* Background(AtkUnitBase* tooltip)
-    {
-        var manager = &tooltip->UldManager;
-        if (manager->NodeList == null)
-            return null;
-
-        for (var i = 0; i < manager->NodeListCount; i++)
-        {
-            var node = manager->NodeList[i];
-            if (node == null || (ushort)node->Type < 1000)
-                continue;
-
-            var component = ((AtkComponentNode*)node)->Component;
-            if (component == null)
-                continue;
-
-            // A component that has not finished loading reports a count without a list behind it.
-            var inner = &component->UldManager;
-            if (inner->NodeList == null)
-                continue;
-
-            for (var j = 0; j < inner->NodeListCount; j++)
-            {
-                var child = inner->NodeList[j];
-                if (child != null && child->Type == NodeType.NineGrid)
-                    return (AtkNineGridNode*)child;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -82,25 +81,6 @@ public sealed unsafe class NamePanel : NativeAddon
 
     /// <summary>Re-applies the hit testing opt-out, which the window restores when it is resized.</summary>
     public void SuppressInput() => MakeNonInteractive(this);
-
-    /// <summary>Whether the background has taken the tooltip's parts yet.</summary>
-    public bool Styled => WindowNode is PanelWindowNode { Styled: true };
-
-    /// <summary>Rebuilds the background from the tooltip's own nine grid.</summary>
-    public void ApplyBackgroundStyle(
-        string texturePath,
-        IReadOnlyList<Vector4> rects,
-        uint partId,
-        byte renderType,
-        uint blendMode,
-        short top,
-        short right,
-        short bottom,
-        short left)
-    {
-        if (WindowNode is PanelWindowNode panel)
-            panel.ApplyStyle(texturePath, rects, partId, renderType, blendMode, top, right, bottom, left);
-    }
 
     protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> values)
     {

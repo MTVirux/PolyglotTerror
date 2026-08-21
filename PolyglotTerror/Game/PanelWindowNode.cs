@@ -1,26 +1,26 @@
-using System.Collections.Generic;
 using System.Numerics;
-using KamiToolKit.Classes;
 using KamiToolKit.Enums;
 using KamiToolKit.Nodes;
 
 namespace PolyglotTerror.Game;
 
 /// <summary>
-/// The background an item tooltip draws, with nothing else on it.
+/// A window frame with no header - the background a game window draws, and nothing else.
 /// </summary>
 /// <remarks>
-/// Taken from ItemDetail itself: its whole frame is one nine grid, so the numbers here are the ones
-/// the game uses rather than an approximation of them. The stock window would look close enough,
-/// but it builds a title, subtitle, two backgrounds, three buttons and their collision every time
-/// it opens - around twenty nodes per panel, none of which this needs.
+/// The background is KamiToolKit's own, which sets up the nine parts a window frame needs. Building
+/// one by hand from the tooltip's node did not work: its parts list is nine overlapping regions of a
+/// corner texture, and reproducing that faithfully enough to render was three failed attempts.
 /// </remarks>
 public sealed class PanelWindowNode : WindowNodeBase
 {
     private const float Inset = 16f;
 
-    private readonly NineGridNode background;
-    private bool styled;
+    private readonly WindowBackgroundTextureNode background = new(false)
+    {
+        Position = Vector2.Zero,
+        IsVisible = true,
+    };
 
     // The base class insists on a node to hand focus to. There is no header here, so it gets an
     // empty one that never draws.
@@ -28,15 +28,7 @@ public sealed class PanelWindowNode : WindowNodeBase
 
     public PanelWindowNode()
     {
-        // Deliberately not SimpleNineGridNode: that wrapper manages a single part and re-applies it,
-        // which undoes the nine copied from the tooltip the first time the panel is resized.
-        background = new NineGridNode
-        {
-            Position = Vector2.Zero,
-            Size = Size,
-            IsVisible = true,
-        };
-
+        background.Size = Size;
         background.AttachNode(this, NodePosition.AsLastChild);
         focusStandIn.AttachNode(this, NodePosition.AsLastChild);
     }
@@ -49,49 +41,6 @@ public sealed class PanelWindowNode : WindowNodeBase
 
     public override ResNode WindowHeaderFocusNode => focusStandIn;
 
-    /// <summary>
-    /// Rebuilds the background from the tooltip's own nine grid.
-    /// </summary>
-    /// <remarks>
-    /// A real nine grid is nine separate pieces of the atlas, and the render type tells the game to
-    /// draw all of them. One part with that render type is what crashed the game - the renderer ran
-    /// off the end of the list - so the parts go in first and the render type only after.
-    /// </remarks>
-    public void ApplyStyle(
-        string texturePath,
-        IReadOnlyList<Vector4> rects,
-        uint partId,
-        byte renderType,
-        uint blendMode,
-        short top,
-        short right,
-        short bottom,
-        short left)
-    {
-        var parts = new List<Part>(rects.Count);
-        foreach (var rect in rects)
-        {
-            parts.Add(new Part
-            {
-                TexturePath = texturePath,
-                U = (ushort)rect.X,
-                V = (ushort)rect.Y,
-                Width = (ushort)rect.Z,
-                Height = (ushort)rect.W,
-            });
-        }
-
-        background.Parts = parts;
-        background.PartId = partId;
-        background.TopOffset = top;
-        background.RightOffset = right;
-        background.BottomOffset = bottom;
-        background.LeftOffset = left;
-        background.BlendMode = blendMode;
-        background.PartsRenderType = renderType;
-        styled = true;
-    }
-
     public override void SetTitle(string title, string? subtitle)
     {
         // There is no header to put a title in.
@@ -102,7 +51,4 @@ public sealed class PanelWindowNode : WindowNodeBase
         base.OnSizeChanged();
         background.Size = Size;
     }
-
-    /// <summary>Whether the tooltip's own parts have been copied in yet.</summary>
-    public bool Styled => styled;
 }
