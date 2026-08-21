@@ -3,7 +3,6 @@ using System.Numerics;
 using KamiToolKit.Classes;
 using KamiToolKit.Enums;
 using KamiToolKit.Nodes;
-using KamiToolKit.Nodes.Simplified;
 
 namespace PolyglotTerror.Game;
 
@@ -20,7 +19,8 @@ public sealed class PanelWindowNode : WindowNodeBase
 {
     private const float Inset = 16f;
 
-    private readonly SimpleNineGridNode background;
+    private readonly NineGridNode background;
+    private bool styled;
 
     // The base class insists on a node to hand focus to. There is no header here, so it gets an
     // empty one that never draws.
@@ -28,15 +28,10 @@ public sealed class PanelWindowNode : WindowNodeBase
 
     public PanelWindowNode()
     {
-        background = new SimpleNineGridNode
+        // Deliberately not SimpleNineGridNode: that wrapper manages a single part and re-applies it,
+        // which undoes the nine copied from the tooltip the first time the panel is resized.
+        background = new NineGridNode
         {
-            TexturePath = "ui/uld/img06/WindowF_BgNormal_Corner.tex",
-            TextureCoordinates = Vector2.Zero,
-            TextureSize = new Vector2(16f, 64f),
-            TopOffset = 64,
-            RightOffset = 32,
-            BottomOffset = 32,
-            LeftOffset = 32,
             Position = Vector2.Zero,
             Size = Size,
             IsVisible = true,
@@ -62,7 +57,16 @@ public sealed class PanelWindowNode : WindowNodeBase
     /// draw all of them. One part with that render type is what crashed the game - the renderer ran
     /// off the end of the list - so the parts go in first and the render type only after.
     /// </remarks>
-    public void ApplyStyle(string texturePath, IReadOnlyList<Vector4> rects, uint partId, byte renderType, uint blendMode)
+    public void ApplyStyle(
+        string texturePath,
+        IReadOnlyList<Vector4> rects,
+        uint partId,
+        byte renderType,
+        uint blendMode,
+        short top,
+        short right,
+        short bottom,
+        short left)
     {
         var parts = new List<Part>(rects.Count);
         foreach (var rect in rects)
@@ -79,8 +83,13 @@ public sealed class PanelWindowNode : WindowNodeBase
 
         background.Parts = parts;
         background.PartId = partId;
+        background.TopOffset = top;
+        background.RightOffset = right;
+        background.BottomOffset = bottom;
+        background.LeftOffset = left;
         background.BlendMode = blendMode;
         background.PartsRenderType = renderType;
+        styled = true;
     }
 
     public override void SetTitle(string title, string? subtitle)
@@ -93,4 +102,7 @@ public sealed class PanelWindowNode : WindowNodeBase
         base.OnSizeChanged();
         background.Size = Size;
     }
+
+    /// <summary>Whether the tooltip's own parts have been copied in yet.</summary>
+    public bool Styled => styled;
 }

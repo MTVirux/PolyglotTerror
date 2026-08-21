@@ -307,7 +307,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             {
                 panel.Size = sizes[i];
                 panel.Open();
-                ApplyTooltipStyle(panel, tooltip);
                 forensics.Write(
                     $"panels: opened {i} isOpen={panel.IsOpen} at {x:F0},{y:F0} " +
                     $"size {sizes[i].X:F0}x{sizes[i].Y:F0}");
@@ -316,6 +315,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             panel.SetWindowSize(sizes[i]);
             panel.SetWindowPosition(new Vector2(x, y));
             panel.SuppressInput();
+
+            // After sizing, so the resize cannot undo it, and retried until it takes - the tooltip's
+            // own background is not always readable on the frame the panel opens.
+            if (!panel.Styled)
+                ApplyTooltipStyle(panel, tooltip);
 
             y += sizes[i].Y + gap;
         }
@@ -353,7 +357,16 @@ public sealed unsafe class ItemTooltipNames : IDisposable
             rects.Add(new Vector4(part->U, part->V, part->Width, part->Height));
         }
 
-        panel.ApplyBackgroundStyle(path, rects, source->PartId, source->PartsTypeRenderType, source->BlendMode);
+        panel.ApplyBackgroundStyle(
+            path,
+            rects,
+            source->PartId,
+            source->PartsTypeRenderType,
+            source->BlendMode,
+            source->TopOffset,
+            source->RightOffset,
+            source->BottomOffset,
+            source->LeftOffset);
 
         if (styleLogged)
             return;
