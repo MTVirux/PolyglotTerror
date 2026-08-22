@@ -17,6 +17,7 @@ namespace PolyglotTerror.Windows;
 public sealed class NamePanelWindow : Window
 {
     private const float Width = 300f;
+    private const float TagScale = 0.8f;
 
     private static readonly Vector4 LanguageColour = new(0.65f, 0.62f, 0.55f, 1f);
 
@@ -65,13 +66,23 @@ public sealed class NamePanelWindow : Window
             var section = sections[i];
             ImGui.TextColored(LanguageColour, section.Language);
 
-            foreach (var line in section.Lines)
+            var lines = section.Lines;
+            for (var j = 0; j < lines.Length; j++)
             {
-                if (line.Length == 0)
+                if (j > 0)
                     ImGui.Spacing();
-                else
-                    ImGui.TextWrapped(line);
+
+                Tag(lines[j].Tag);
+                ImGui.TextWrapped(lines[j].Text);
             }
         }
+    }
+
+    /// <summary>The small muted label above a line, naming which field it is.</summary>
+    private static void Tag(string text)
+    {
+        ImGui.SetWindowFontScale(TagScale);
+        ImGui.TextDisabled(text);
+        ImGui.SetWindowFontScale(1f);
     }
 }

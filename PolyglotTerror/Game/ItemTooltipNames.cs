@@ -26,6 +26,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 {
     private const string AddonName = "ItemDetail";
     private const int IdleFramesBeforeClose = 10;
+    private const float VerticalOffset = 20f;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -226,10 +227,12 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         // The game's own back buffer, not ImGui's viewport - this runs on the framework tick,
         // where there is no ImGui context to ask.
         var screenWidth = Device.Instance()->Width;
-        if (right + width > screenWidth)
-            return new Vector2(Math.Max(0f, tooltip->X - width - gap), tooltip->Y);
+        var top = tooltip->Y + VerticalOffset;
 
-        return new Vector2(right, tooltip->Y);
+        if (right + width > screenWidth)
+            return new Vector2(Math.Max(0f, tooltip->X - width - gap), top);
+
+        return new Vector2(right, top);
     }
 
     private void Hide() => window.IsOpen = false;
@@ -278,19 +281,19 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     }
 
     /// <summary>One language's text for each block that is switched on.</summary>
-    private string[] ComposeOne(uint itemId, GameLanguage language, ItemNames client)
+    private NameLine[] ComposeOne(uint itemId, GameLanguage language, ItemNames client)
     {
         var other = names.GetItem(language, itemId);
-        var block = new List<string>();
+        var block = new List<NameLine>();
 
-        Add(block, config.ShowItemName, other.Name, client.Name);
-        Add(block, config.ShowItemCategory, other.Category, client.Category);
-        Add(block, config.ShowItemDescription, other.Description, client.Description);
+        Add(block, "Name", config.ShowItemName, other.Name, client.Name);
+        Add(block, "Category", config.ShowItemCategory, other.Category, client.Category);
+        Add(block, "Description", config.ShowItemDescription, other.Description, client.Description);
 
         return block.ToArray();
     }
 
-    private void Add(List<string> block, bool wanted, string? value, string? clientValue)
+    private void Add(List<NameLine> block, string tag, bool wanted, string? value, string? clientValue)
     {
         var text = value?.Trim();
         if (!wanted || string.IsNullOrEmpty(text))
@@ -299,10 +302,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         if (config.HideDuplicates && string.Equals(text, clientValue?.Trim(), StringComparison.Ordinal))
             return;
 
-        if (block.Count > 0)
-            block.Add(string.Empty);
-
-        block.Add(text);
+        block.Add(new NameLine(tag, text));
     }
 
 }
