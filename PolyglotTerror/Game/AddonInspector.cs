@@ -8,26 +8,12 @@ namespace PolyglotTerror.Game;
 /// </summary>
 public sealed unsafe class AddonInspector
 {
-    private TooltipForensics? forensics;
-
-    /// <summary>
-    /// Sends the dump to the plugin's own file as well. Dalamud's log stops recording once it hits
-    /// its size cap, which a long session reaches easily.
-    /// </summary>
-    public void AlsoWriteTo(TooltipForensics writer) => forensics = writer;
-
-    private void Report(string line)
-    {
-        Plugin.Log.Information(line);
-        forensics?.Write(line);
-    }
-
     public void DumpNodes(string addonName)
     {
         var unit = (AtkUnitBase*)(nint)Plugin.GameGui.GetAddonByName(addonName, 1);
         if (unit == null)
         {
-            Report($"Addon {addonName} is not open.");
+            Plugin.Log.Information($"Addon {addonName} is not open.");
             return;
         }
 
@@ -41,7 +27,7 @@ public sealed unsafe class AddonInspector
 
         var root = unit->RootNode;
         var rootSize = root == null ? "none" : $"{root->Width}x{root->Height}";
-        Report(
+        Plugin.Log.Information(
             $"Addon {addonName}: {unit->UldManager.NodeListCount} nodes, visible={unit->IsVisible}, root={rootSize}, " +
             $"scale={unit->Scale}, build={BuildStamp()}");
 
@@ -72,13 +58,13 @@ public sealed unsafe class AddonInspector
             if (node->Type == NodeType.Text)
             {
                 var text = (AtkTextNode*)node;
-                Report(
+                Plugin.Log.Information(
                     $"{indent}[{i}] id={node->NodeId} Text visible={visible} {box} flags={text->TextFlags} " +
                     $"lineSpacing={text->LineSpacing} fontSize={text->FontSize} \"{text->NodeText}\"");
             }
             else
             {
-                Report($"{indent}[{i}] id={node->NodeId} {node->Type} visible={visible} {box}{Texture(node)}");
+                Plugin.Log.Information($"{indent}[{i}] id={node->NodeId} {node->Type} visible={visible} {box}{Texture(node)}");
             }
 
             if ((ushort)node->Type < 1000)

@@ -29,29 +29,24 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
     private readonly Configuration config;
     private readonly NameCatalog names;
-    private readonly TooltipForensics forensics;
     private readonly AddonInspector inspector;
     private readonly NamePanelWindow window;
 
     private List<NameSection> sections = [];
     private GameLanguage? selected;
-    private string state = string.Empty;
     private int idleFrames;
     private bool dumpArmed;
     private bool enabled;
     private bool disposed;
-    private bool altWasHeld;
 
     public ItemTooltipNames(
         Configuration config,
         NameCatalog names,
-        TooltipForensics forensics,
         AddonInspector inspector,
         NamePanelWindow window)
     {
         this.config = config;
         this.names = names;
-        this.forensics = forensics;
         this.inspector = inspector;
         this.window = window;
     }
@@ -118,7 +113,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     private void Rebuild()
     {
         sections = Compose();
-        forensics.Write($"name panels: {sections.Count}");
         window.SetSections(sections);
     }
 
@@ -178,42 +172,15 @@ public sealed unsafe class ItemTooltipNames : IDisposable
            && tooltip->RootNode->Color.A > 0;
 
     /// <summary>
-    /// Records the tooltip's own visibility fields as Alt goes down and up, so the key check can be
-    /// swapped for whichever of them the game actually moves.
-    /// </summary>
-    private void LogAltTransition(AtkUnitBase* tooltip, bool held)
-    {
-        if (held == altWasHeld)
-            return;
-
-        altWasHeld = held;
-
-        if (tooltip == null)
-        {
-            forensics.Write($"alt {(held ? "down" : "up")}: no tooltip");
-            return;
-        }
-
-        var root = tooltip->RootNode;
-        forensics.Write(
-            $"alt {(held ? "down" : "up")}: visible={tooltip->IsVisible} alpha={tooltip->Alpha} " +
-            $"visFlags={tooltip->VisibilityFlags} showHide={tooltip->ShowHideFlags} " +
-            $"rootVisible={(root != null && root->IsVisible())} rootAlpha={(root == null ? -1 : root->Color.A)}");
-    }
-
-    /// <summary>
     /// Follows the tooltip. It moves with the cursor every frame and is hidden rather than closed
     /// between hovers, so neither its position nor its visibility can be learnt from an event.
     /// </summary>
     private void OnFrameworkUpdate(IFramework framework)
     {
         var tooltip = Tooltip();
-        var held = AltHeld;
-        LogAltTransition(tooltip, held);
 
-        if (held || !Showing(tooltip))
+        if (AltHeld || !Showing(tooltip))
         {
-            Note(held ? "idle: alt" : "idle: tooltip not showing");
             Idle();
             return;
         }
@@ -223,14 +190,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 
         if (sections.Count == 0)
         {
-            Note("idle: nothing to show");
             Idle();
             return;
         }
 
         idleFrames = 0;
-        Note("laying out");
-
         window.Anchor = Beside(tooltip, config.TooltipPanelGap);
         window.IsOpen = true;
     }
@@ -248,16 +212,6 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         idleFrames++;
         if (idleFrames > IdleFramesBeforeClose)
             Hide();
-    }
-
-    /// <summary>Logs what the tick decided, but only when that changes.</summary>
-    private void Note(string next)
-    {
-        if (state == next)
-            return;
-
-        state = next;
-        forensics.Write($"panels: {next}");
     }
 
     /// <summary>

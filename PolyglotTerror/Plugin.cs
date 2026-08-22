@@ -29,7 +29,6 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
     private readonly AddonInspector inspector = new();
-    private readonly TooltipForensics forensics;
     private readonly ConfigWindow configWindow;
     private readonly NamePanelWindow namePanel = new();
     private readonly CastBarDecorator castBars;
@@ -41,9 +40,6 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Migrate();
 
-        forensics = new TooltipForensics();
-        inspector.AlsoWriteTo(forensics);
-
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
         windowSystem.AddWindow(namePanel);
@@ -51,9 +47,9 @@ public sealed class Plugin : IDalamudPlugin
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        actionTooltips = new ActionTooltipDecorator(Configuration, Names, forensics);
+        actionTooltips = new ActionTooltipDecorator(Configuration, Names);
 
-        itemNames = new ItemTooltipNames(Configuration, Names, forensics, inspector, namePanel);
+        itemNames = new ItemTooltipNames(Configuration, Names, inspector, namePanel);
 
         itemNames.SetEnabled(true);
 
@@ -80,7 +76,6 @@ public sealed class Plugin : IDalamudPlugin
         castBars.Dispose();
         actionTooltips.Dispose();
         itemNames.Dispose();
-        forensics.Dispose();
     }
 
     private void RegisterCastBars()

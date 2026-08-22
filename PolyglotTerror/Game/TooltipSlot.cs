@@ -12,19 +12,11 @@ namespace PolyglotTerror.Game;
 /// </summary>
 internal sealed unsafe class TooltipSlot
 {
-    private readonly TooltipForensics forensics;
-    private readonly string label;
     private int index = -1;
     private uint subjectId;
     private byte[] original = [];
     private string originalText = string.Empty;
     private byte[] written = [];
-
-    public TooltipSlot(TooltipForensics forensics, string label)
-    {
-        this.forensics = forensics;
-        this.label = label;
-    }
 
     /// <summary>
     /// The lines appended by the last write. The game keeps the original bytes verbatim, so this
@@ -41,15 +33,12 @@ internal sealed unsafe class TooltipSlot
         if (expected.Length == 0)
             return;
 
-        forensics.Write($"  {label}: locating in {data->Size} entries");
         var slot = Locate(data, subject, expected);
-        forensics.Write($"  {label}: slot={slot}");
         if (slot < 0)
             return;
 
         var head = Strip(originalText);
         var composed = compose(head);
-        forensics.Write($"  {label}: composed={composed?.Length ?? -1} head={head.Length}");
         if (composed is null || !composed.StartsWith(head, StringComparison.Ordinal))
             return;
 
@@ -61,9 +50,7 @@ internal sealed unsafe class TooltipSlot
         original.CopyTo(value, 0);
         tail.CopyTo(value, original.Length);
 
-        forensics.Write($"  {label}: writing {value.Length} bytes (orig={original.Length} tail={tail.Length})");
         data->SetValue(slot, value.AsSpan(), readBeforeWrite: false, managed: true, suppressUpdates: true);
-        forensics.Write($"  {label}: written");
         written = value[..^1];
         AppendedText = tailText;
     }

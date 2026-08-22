@@ -22,12 +22,12 @@ public sealed unsafe class ActionTooltipDecorator : IDisposable
     private readonly TooltipSlot nameSlot;
     private readonly TooltipSlot descriptionSlot;
 
-    public ActionTooltipDecorator(Configuration config, NameCatalog names, TooltipForensics forensics)
+    public ActionTooltipDecorator(Configuration config, NameCatalog names)
     {
         this.config = config;
         this.names = names;
-        nameSlot = new TooltipSlot(forensics, "action name");
-        descriptionSlot = new TooltipSlot(forensics, "action description");
+        nameSlot = new TooltipSlot();
+        descriptionSlot = new TooltipSlot();
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRequestedUpdate, AddonName, OnPreRequestedUpdate);
     }
