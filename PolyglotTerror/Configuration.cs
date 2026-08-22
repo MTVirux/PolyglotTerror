@@ -59,10 +59,13 @@ public class Configuration : IPluginConfiguration
     public bool HideDuplicates { get; set; } = true;
 
     /// <summary>
-    /// Shows one language at a time in the panel, stepped through with the scroll wheel while an
-    /// item is hovered, rather than stacking every enabled language at once.
+    /// Shows one language at a time in the item panel, stepped through with the scroll wheel while
+    /// an item is hovered, rather than stacking every enabled language at once.
     /// </summary>
     public bool CycleLanguagesWithScroll { get; set; } = true;
+
+    /// <summary>The same, for the action panel.</summary>
+    public bool CycleActionLanguagesWithScroll { get; set; } = true;
 
     /// <summary>
     /// Moves the cast bar text up or down without resizing the bar itself.
@@ -78,6 +81,12 @@ public class Configuration : IPluginConfiguration
     /// Moves the panel of translated names up or down relative to the top of the tooltip.
     /// </summary>
     public int TooltipPanelOffsetY { get; set; } = 20;
+
+    /// <summary>Distance between an action tooltip and the panel of translated names beside it.</summary>
+    public int ActionPanelGap { get; set; } = 8;
+
+    /// <summary>Moves the action panel up or down relative to the top of the action tooltip.</summary>
+    public int ActionPanelOffsetY { get; set; } = 20;
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or

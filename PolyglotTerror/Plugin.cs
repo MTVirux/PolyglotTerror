@@ -30,9 +30,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
     private readonly AddonInspector inspector = new();
     private readonly ConfigWindow configWindow;
-    private readonly NamePanelWindow namePanel = new();
+    private readonly NamePanelWindow itemPanel = new("PolyglotItemNames");
+    private readonly NamePanelWindow actionPanel = new("PolyglotActionNames");
     private readonly CastBarDecorator castBars;
-    private readonly ActionTooltipDecorator actionTooltips;
+    private readonly ActionTooltipNames actionNames;
     private readonly ItemTooltipNames itemNames;
 
     public Plugin()
@@ -42,20 +43,21 @@ public sealed class Plugin : IDalamudPlugin
 
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
-        windowSystem.AddWindow(namePanel);
+        windowSystem.AddWindow(itemPanel);
+        windowSystem.AddWindow(actionPanel);
 
         castBars = new CastBarDecorator(Configuration, Names);
         RegisterCastBars();
 
-        actionTooltips = new ActionTooltipDecorator(Configuration, Names);
-
-        itemNames = new ItemTooltipNames(Configuration, Names, inspector, namePanel);
+        itemNames = new ItemTooltipNames(Configuration, Names, inspector, itemPanel);
+        actionNames = new ActionTooltipNames(Configuration, Names, actionPanel);
 
         itemNames.SetEnabled(true);
+        actionNames.SetEnabled(true);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip's, \"/polyglot panel\" toggles the tooltip name panel.",
+            HelpMessage = "Open settings. \"/polyglot nodes <AddonName>\" logs an addon's node tree, \"/polyglot dump item\" logs the next item tooltip's, \"/polyglot panel\" toggles the tooltip name panels.",
         });
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -74,7 +76,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
         castBars.Dispose();
-        actionTooltips.Dispose();
+        actionNames.Dispose();
         itemNames.Dispose();
     }
 
@@ -117,11 +119,13 @@ public sealed class Plugin : IDalamudPlugin
 
         if (parts.Length >= 1 && (parts[0] == "panel" || parts[0] == "kami"))
         {
-            itemNames.SetEnabled(!itemNames.Enabled);
+            var wanted = !itemNames.Enabled;
+            itemNames.SetEnabled(wanted);
+            actionNames.SetEnabled(wanted);
 
-            var state = itemNames.Enabled ? "enabled" : "disabled";
-            Chat.Print($"PolyglotTerror: tooltip name panel {state}.");
-            Log.Information($"Tooltip name panel {state}.");
+            var state = wanted ? "enabled" : "disabled";
+            Chat.Print($"PolyglotTerror: tooltip name panels {state}.");
+            Log.Information($"Tooltip name panels {state}.");
             return;
         }
 

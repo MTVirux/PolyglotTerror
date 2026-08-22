@@ -85,37 +85,14 @@ public sealed class ConfigWindow : Window, IDisposable
 
         ImGui.TextDisabled("Descriptions in four languages make for a very tall panel.");
 
-        ImGui.Spacing();
-        Option(
-            "Show one language at a time, scroll to change it",
+        DrawPanelPlacement(
+            "Item translations appear beside the tooltip, and hide with it.",
             configuration.CycleLanguagesWithScroll,
-            value => configuration.CycleLanguagesWithScroll = value);
-
-        ImGui.TextDisabled("Off shows every language at once, one panel each, stacked top to bottom.");
-        ImGui.TextDisabled("Scrolling still scrolls whatever is under the cursor as well.");
-
-        ImGui.Spacing();
-        ImGui.TextDisabled("Item translations appear beside the tooltip, and hide with it.");
-
-        var gap = configuration.TooltipPanelGap;
-        if (ImGui.SliderInt("Gap beside the tooltip", ref gap, Configuration.MinTooltipPanelGap, Configuration.MaxTooltipPanelGap))
-        {
-            configuration.TooltipPanelGap = gap;
-            Apply();
-        }
-
-        var offsetY = configuration.TooltipPanelOffsetY;
-        if (ImGui.SliderInt(
-                "Vertical offset",
-                ref offsetY,
-                Configuration.MinTooltipPanelOffsetY,
-                Configuration.MaxTooltipPanelOffsetY))
-        {
-            configuration.TooltipPanelOffsetY = offsetY;
-            Apply();
-        }
-
-        ImGui.TextDisabled("Moves the panel up or down relative to the top of the tooltip.");
+            value => configuration.CycleLanguagesWithScroll = value,
+            configuration.TooltipPanelGap,
+            value => configuration.TooltipPanelGap = value,
+            configuration.TooltipPanelOffsetY,
+            value => configuration.TooltipPanelOffsetY = value);
 
         ImGui.PopID();
     }
@@ -129,7 +106,58 @@ public sealed class ConfigWindow : Window, IDisposable
         Option("Name", configuration.ShowActionName, value => configuration.ShowActionName = value);
         Option("Description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
 
+        DrawPanelPlacement(
+            "Action translations appear beside the tooltip, and hide with it.",
+            configuration.CycleActionLanguagesWithScroll,
+            value => configuration.CycleActionLanguagesWithScroll = value,
+            configuration.ActionPanelGap,
+            value => configuration.ActionPanelGap = value,
+            configuration.ActionPanelOffsetY,
+            value => configuration.ActionPanelOffsetY = value);
+
         ImGui.PopID();
+    }
+
+    /// <summary>The knobs both name panels have, drawn against whichever one's settings are passed in.</summary>
+    private void DrawPanelPlacement(
+        string blurb,
+        bool cycle,
+        Action<bool> setCycle,
+        int gap,
+        Action<int> setGap,
+        int offsetY,
+        Action<int> setOffsetY)
+    {
+        ImGui.Spacing();
+        Option("Show one language at a time, scroll to change it", cycle, setCycle);
+
+        ImGui.TextDisabled("Off shows every language at once, one panel each, stacked top to bottom.");
+        ImGui.TextDisabled("Scrolling still scrolls whatever is under the cursor as well.");
+
+        ImGui.Spacing();
+        ImGui.TextDisabled(blurb);
+
+        if (ImGui.SliderInt(
+                "Gap beside the tooltip",
+                ref gap,
+                Configuration.MinTooltipPanelGap,
+                Configuration.MaxTooltipPanelGap))
+        {
+            setGap(gap);
+            Apply();
+        }
+
+        if (ImGui.SliderInt(
+                "Vertical offset",
+                ref offsetY,
+                Configuration.MinTooltipPanelOffsetY,
+                Configuration.MaxTooltipPanelOffsetY))
+        {
+            setOffsetY(offsetY);
+            Apply();
+        }
+
+        ImGui.TextDisabled("Moves the panel up or down relative to the top of the tooltip.");
     }
 
     private void DrawSurfaces()

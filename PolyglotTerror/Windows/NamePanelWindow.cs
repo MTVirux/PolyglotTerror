@@ -23,7 +23,7 @@ public sealed class NamePanelWindow : Window
 
     private IReadOnlyList<NameSection> sections = [];
 
-    public NamePanelWindow() : base("PolyglotTerror Names###PolyglotNames")
+    public NamePanelWindow(string id) : base($"PolyglotTerror Names###{id}")
     {
         // NoInputs is the important one: the panel sits next to the cursor, and anything that
         // answers the mouse takes the hover away from the item underneath it.
