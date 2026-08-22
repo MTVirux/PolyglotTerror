@@ -19,6 +19,10 @@ public class Configuration : IPluginConfiguration
 
     public const int MaxTooltipPanelGap = 40;
 
+    public const int MinTooltipPanelOffsetY = -100;
+
+    public const int MaxTooltipPanelOffsetY = 100;
+
     public int Version { get; set; } = CurrentVersion;
 
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
@@ -69,6 +73,11 @@ public class Configuration : IPluginConfiguration
     /// Distance between a tooltip and the panel of translated names beside it.
     /// </summary>
     public int TooltipPanelGap { get; set; } = 8;
+
+    /// <summary>
+    /// Moves the panel of translated names up or down relative to the top of the tooltip.
+    /// </summary>
+    public int TooltipPanelOffsetY { get; set; } = 20;
 
     /// <summary>
     /// Repairs a config whose language list is missing entries, has duplicates, or

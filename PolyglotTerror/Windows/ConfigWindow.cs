@@ -28,7 +28,8 @@ public sealed class ConfigWindow : Window, IDisposable
     public override void Draw()
     {
         DrawLanguages();
-        DrawTooltips();
+        DrawItems();
+        DrawActions();
         DrawSurfaces();
         DrawDisplay();
 
@@ -71,15 +72,16 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.TextDisabled("Lines are shown in this order. The first enabled language is the primary one.");
     }
 
-    private void DrawTooltips()
+    private void DrawItems()
     {
-        Heading("Tooltips");
+        Heading("Items");
 
-        Option("Item name", configuration.ShowItemName, value => configuration.ShowItemName = value);
-        Option("Item category", configuration.ShowItemCategory, value => configuration.ShowItemCategory = value);
-        Option("Item description", configuration.ShowItemDescription, value => configuration.ShowItemDescription = value);
-        Option("Action name", configuration.ShowActionName, value => configuration.ShowActionName = value);
-        Option("Action description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
+        // Both sections label their checkboxes the same way, so they need separate ID scopes.
+        ImGui.PushID("items");
+
+        Option("Name", configuration.ShowItemName, value => configuration.ShowItemName = value);
+        Option("Category", configuration.ShowItemCategory, value => configuration.ShowItemCategory = value);
+        Option("Description", configuration.ShowItemDescription, value => configuration.ShowItemDescription = value);
 
         ImGui.TextDisabled("Descriptions in four languages make for a very tall panel.");
 
@@ -101,6 +103,33 @@ public sealed class ConfigWindow : Window, IDisposable
             configuration.TooltipPanelGap = gap;
             Apply();
         }
+
+        var offsetY = configuration.TooltipPanelOffsetY;
+        if (ImGui.SliderInt(
+                "Vertical offset",
+                ref offsetY,
+                Configuration.MinTooltipPanelOffsetY,
+                Configuration.MaxTooltipPanelOffsetY))
+        {
+            configuration.TooltipPanelOffsetY = offsetY;
+            Apply();
+        }
+
+        ImGui.TextDisabled("Moves the panel up or down relative to the top of the tooltip.");
+
+        ImGui.PopID();
+    }
+
+    private void DrawActions()
+    {
+        Heading("Actions");
+
+        ImGui.PushID("actions");
+
+        Option("Name", configuration.ShowActionName, value => configuration.ShowActionName = value);
+        Option("Description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
+
+        ImGui.PopID();
     }
 
     private void DrawSurfaces()

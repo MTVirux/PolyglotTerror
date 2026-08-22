@@ -26,7 +26,11 @@ public sealed unsafe class ItemTooltipNames : IDisposable
 {
     private const string AddonName = "ItemDetail";
     private const int IdleFramesBeforeClose = 10;
-    private const float VerticalOffset = 20f;
+
+    // Rows of the game's own UI text sheet, so the panel's labels follow the client's language.
+    private const uint NameLabel = 1898;
+    private const uint CategoryLabel = 7871;
+    private const uint DescriptionLabel = 543;
 
     private readonly Configuration config;
     private readonly NameCatalog names;
@@ -196,7 +200,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         }
 
         idleFrames = 0;
-        window.Anchor = Beside(tooltip, config.TooltipPanelGap);
+        window.Anchor = Beside(tooltip, config.TooltipPanelGap, config.TooltipPanelOffsetY);
         window.IsOpen = true;
     }
 
@@ -218,7 +222,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
     /// <summary>
     /// To the right of the tooltip, flipping to the left when there is no room for it there.
     /// </summary>
-    private static Vector2 Beside(AtkUnitBase* tooltip, float gap)
+    private static Vector2 Beside(AtkUnitBase* tooltip, float gap, float offsetY)
     {
         var width = NamePanelWindow.ExpectedWidth;
         var tooltipWidth = tooltip->RootNode->Width * tooltip->Scale;
@@ -227,7 +231,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         // The game's own back buffer, not ImGui's viewport - this runs on the framework tick,
         // where there is no ImGui context to ask.
         var screenWidth = Device.Instance()->Width;
-        var top = tooltip->Y + VerticalOffset;
+        var top = tooltip->Y + offsetY;
 
         if (right + width > screenWidth)
             return new Vector2(Math.Max(0f, tooltip->X - width - gap), top);
@@ -286,14 +290,18 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         var other = names.GetItem(language, itemId);
         var block = new List<NameLine>();
 
-        Add(block, "Name", config.ShowItemName, other.Name, client.Name);
-        Add(block, "Category", config.ShowItemCategory, other.Category, client.Category);
-        Add(block, "Description", config.ShowItemDescription, other.Description, client.Description);
+        Add(block, NameLabel, config.ShowItemName, other.Name, client.Name);
+        Add(block, CategoryLabel, config.ShowItemCategory, other.Category, client.Category);
+        Add(block, DescriptionLabel, config.ShowItemDescription, other.Description, client.Description);
 
         return block.ToArray();
     }
 
-    private void Add(List<NameLine> block, string tag, bool wanted, string? value, string? clientValue)
+    /// <summary>What the game itself calls this field, in the language the client is running in.</summary>
+    private string Tag(uint labelRow)
+        => names.GetUiText(NameCatalog.FromClientLanguage(Plugin.ClientState.ClientLanguage), labelRow) ?? string.Empty;
+
+    private void Add(List<NameLine> block, uint labelRow, bool wanted, string? value, string? clientValue)
     {
         var text = value?.Trim();
         if (!wanted || string.IsNullOrEmpty(text))
@@ -302,7 +310,7 @@ public sealed unsafe class ItemTooltipNames : IDisposable
         if (config.HideDuplicates && string.Equals(text, clientValue?.Trim(), StringComparison.Ordinal))
             return;
 
-        block.Add(new NameLine(tag, text));
+        block.Add(new NameLine(Tag(labelRow), text));
     }
 
 }

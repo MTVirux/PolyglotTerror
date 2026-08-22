@@ -24,6 +24,7 @@ public sealed class NameCatalog
     };
 
     private readonly Dictionary<(GameLanguage, uint), ItemNames> itemMemo = new();
+    private readonly Dictionary<(GameLanguage, uint), string?> addonMemo = new();
     private readonly Dictionary<(GameLanguage, byte, uint), string?> castMemo = new();
     private readonly Dictionary<(GameLanguage, DetailKind, uint), ActionNames> detailMemo = new();
 
@@ -34,6 +35,21 @@ public sealed class NameCatalog
         ClientLanguage.French => GameLanguage.French,
         _ => GameLanguage.English,
     };
+
+    /// <summary>
+    /// A line of the game's own UI text, so labels the plugin draws read in the same language the
+    /// game is already speaking rather than in whatever the plugin was written in.
+    /// </summary>
+    public string? GetUiText(GameLanguage language, uint addonRowId)
+    {
+        var key = (language, addonRowId);
+        if (addonMemo.TryGetValue(key, out var cached))
+            return cached;
+
+        var resolved = Row<Addon>(language, addonRowId, static row => row.Text.ExtractText());
+        addonMemo[key] = resolved;
+        return resolved;
+    }
 
     public ItemNames GetItem(GameLanguage language, uint hoveredItemId)
     {
@@ -79,6 +95,7 @@ public sealed class NameCatalog
     public void Clear()
     {
         itemMemo.Clear();
+        addonMemo.Clear();
         castMemo.Clear();
         detailMemo.Clear();
     }
