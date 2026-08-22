@@ -81,6 +81,9 @@ public sealed class NamePanelWindow : Window
     /// <summary>The small muted label above a line, naming which field it is.</summary>
     private static void Tag(string text)
     {
+        if (text.Length == 0)
+            return;
+
         ImGui.SetWindowFontScale(TagScale);
         ImGui.TextDisabled(text);
         ImGui.SetWindowFontScale(1f);
