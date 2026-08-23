@@ -68,9 +68,13 @@ public sealed class ConfigWindow : Window, IDisposable
             if (ImGui.ArrowButton($"##down{i}", ImGuiDir.Down))
                 Swap(i, i + 1);
             ImGui.EndDisabled();
-        }
 
-        ImGui.TextDisabled("Lines are shown in this order. The first enabled language is the primary one.");
+            if (i == 0)
+            {
+                ImGui.SameLine();
+                HelpMarker("Lines are shown in this order. The first enabled language is the primary one.");
+            }
+        }
     }
 
     private void DrawItems()
@@ -83,9 +87,11 @@ public sealed class ConfigWindow : Window, IDisposable
 
         Option("Name", configuration.ShowItemName, value => configuration.ShowItemName = value);
         Option("Category", configuration.ShowItemCategory, value => configuration.ShowItemCategory = value);
-        Option("Description", configuration.ShowItemDescription, value => configuration.ShowItemDescription = value);
-
-        ImGui.TextDisabled("Descriptions in four languages make for a very tall panel.");
+        Option(
+            "Description",
+            configuration.ShowItemDescription,
+            value => configuration.ShowItemDescription = value,
+            "Descriptions in four languages make for a very tall panel.");
 
         DrawPanelPlacement(
             "Item translations appear beside the tooltip, and hide with it.",
@@ -132,35 +138,28 @@ public sealed class ConfigWindow : Window, IDisposable
         Action<int> setOffsetY)
     {
         ImGui.Spacing();
-        Option("Show one language at a time, scroll to change it", cycle, setCycle);
+        Option(
+            "Show one language at a time, scroll to change it",
+            cycle,
+            setCycle,
+            "Off shows every language at once, one panel each, stacked top to bottom.\n\n" +
+            "Scrolling still scrolls whatever is under the cursor as well.");
 
-        ImGui.TextDisabled("Off shows every language at once, one panel each, stacked top to bottom.");
-        ImGui.TextDisabled("Scrolling still scrolls whatever is under the cursor as well.");
+        Slider(
+            "Gap beside the tooltip",
+            gap,
+            Configuration.MinTooltipPanelGap,
+            Configuration.MaxTooltipPanelGap,
+            setGap,
+            blurb);
 
-        ImGui.Spacing();
-        ImGui.TextDisabled(blurb);
-
-        if (ImGui.SliderInt(
-                "Gap beside the tooltip",
-                ref gap,
-                Configuration.MinTooltipPanelGap,
-                Configuration.MaxTooltipPanelGap))
-        {
-            setGap(gap);
-            Apply();
-        }
-
-        if (ImGui.SliderInt(
-                "Vertical offset",
-                ref offsetY,
-                Configuration.MinTooltipPanelOffsetY,
-                Configuration.MaxTooltipPanelOffsetY))
-        {
-            setOffsetY(offsetY);
-            Apply();
-        }
-
-        ImGui.TextDisabled("Moves the panel up or down relative to the top of the tooltip.");
+        Slider(
+            "Vertical offset",
+            offsetY,
+            Configuration.MinTooltipPanelOffsetY,
+            Configuration.MaxTooltipPanelOffsetY,
+            setOffsetY,
+            "Moves the panel up or down relative to the top of the tooltip.");
     }
 
     private void DrawSurfaces()
@@ -168,14 +167,16 @@ public sealed class ConfigWindow : Window, IDisposable
         if (!Section("Where to show translations"))
             return;
 
-        Option("Item tooltips", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
+        Option(
+            "Item tooltips",
+            configuration.DecorateTooltip,
+            value => configuration.DecorateTooltip = value,
+            "Changes in this section apply after the plugin reloads.");
         Option("Action tooltips", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
         Option("Your own cast bar", configuration.DecorateOwnCastBar, value => configuration.DecorateOwnCastBar = value);
         Option("Target and focus target cast bars", configuration.DecorateTargetBars, value => configuration.DecorateTargetBars = value);
         Option("Cast bars over enemies", configuration.DecorateOverheadBars, value => configuration.DecorateOverheadBars = value);
         Option("Party list (primary language only)", configuration.DecoratePartyList, value => configuration.DecoratePartyList = value);
-
-        ImGui.TextDisabled("Changes here apply after the plugin reloads.");
     }
 
     private void DrawDisplay()
@@ -188,18 +189,13 @@ public sealed class ConfigWindow : Window, IDisposable
             configuration.HideDuplicates,
             value => configuration.HideDuplicates = value);
 
-        var offset = configuration.CastBarTextOffset;
-        if (ImGui.SliderInt(
-                "Cast bar text offset",
-                ref offset,
-                Configuration.MinCastBarTextOffset,
-                Configuration.MaxCastBarTextOffset))
-        {
-            configuration.CastBarTextOffset = offset;
-            Apply();
-        }
-
-        ImGui.TextDisabled("Moves the cast bar text up or down. The bar itself stays where it is.");
+        Slider(
+            "Cast bar text offset",
+            configuration.CastBarTextOffset,
+            Configuration.MinCastBarTextOffset,
+            Configuration.MaxCastBarTextOffset,
+            value => configuration.CastBarTextOffset = value,
+            "Moves the cast bar text up or down. The bar itself stays where it is.");
     }
 
     private void Swap(int a, int b)
@@ -209,13 +205,26 @@ public sealed class ConfigWindow : Window, IDisposable
         Apply();
     }
 
-    private void Option(string label, bool value, Action<bool> set)
+    private void Option(string label, bool value, Action<bool> set, string? help = null)
     {
-        if (!ImGui.Checkbox(label, ref value))
-            return;
+        if (ImGui.Checkbox(label, ref value))
+        {
+            set(value);
+            Apply();
+        }
 
-        set(value);
-        Apply();
+        Help(help);
+    }
+
+    private void Slider(string label, int value, int min, int max, Action<int> set, string? help = null)
+    {
+        if (ImGui.SliderInt(label, ref value, min, max))
+        {
+            set(value);
+            Apply();
+        }
+
+        Help(help);
     }
 
     private void Apply()
@@ -232,5 +241,27 @@ public sealed class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
         return true;
+    }
+
+    private static void Help(string? text)
+    {
+        if (text is null)
+            return;
+
+        ImGui.SameLine();
+        HelpMarker(text);
+    }
+
+    private static void HelpMarker(string text)
+    {
+        ImGui.TextDisabled("(?)");
+        if (!ImGui.IsItemHovered())
+            return;
+
+        ImGui.BeginTooltip();
+        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 30f);
+        ImGui.TextUnformatted(text);
+        ImGui.PopTextWrapPos();
+        ImGui.EndTooltip();
     }
 }
