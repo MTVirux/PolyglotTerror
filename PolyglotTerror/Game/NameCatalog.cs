@@ -10,9 +10,8 @@ using LuminaAction = Lumina.Excel.Sheets.Action;
 
 namespace PolyglotTerror.Game;
 
-public sealed record ItemNames(string? Name, string? Category, string? Description);
-
-public sealed record ActionNames(string? Name, string? Category, string? Description);
+/// <summary>What a tooltip shows about its subject, in one language.</summary>
+public sealed record SubjectNames(string? Name, string? Category, string? Description);
 
 public sealed class NameCatalog
 {
@@ -24,10 +23,10 @@ public sealed class NameCatalog
         { GameLanguage.French, ClientLanguage.French },
     };
 
-    private readonly Dictionary<(GameLanguage, uint), ItemNames> itemMemo = new();
-    private readonly Dictionary<(GameLanguage, uint), string?> addonMemo = new();
-    private readonly Dictionary<(GameLanguage, byte, uint), string?> castMemo = new();
-    private readonly Dictionary<(GameLanguage, DetailKind, uint), ActionNames> detailMemo = new();
+    private readonly Dictionary<(GameLanguage Language, uint ItemId), SubjectNames> itemMemo = new();
+    private readonly Dictionary<(GameLanguage Language, uint RowId), string?> addonMemo = new();
+    private readonly Dictionary<(GameLanguage Language, byte ActionType, uint ActionId), string?> castMemo = new();
+    private readonly Dictionary<(GameLanguage Language, DetailKind Kind, uint ActionId), SubjectNames> detailMemo = new();
 
     public static GameLanguage FromClientLanguage(ClientLanguage language) => language switch
     {
@@ -42,56 +41,28 @@ public sealed class NameCatalog
     /// game is already speaking rather than in whatever the plugin was written in.
     /// </summary>
     public string? GetUiText(GameLanguage language, uint addonRowId)
-    {
-        var key = (language, addonRowId);
-        if (addonMemo.TryGetValue(key, out var cached))
-            return cached;
+        => Memo(addonMemo, (Language: language, RowId: addonRowId),
+            static key => Row<Addon>(key.Language, key.RowId, static row => row.Text));
 
-        var resolved = Row<Addon>(language, addonRowId, static row => row.Text);
-        addonMemo[key] = resolved;
-        return resolved;
-    }
-
-    public ItemNames GetItem(GameLanguage language, uint hoveredItemId)
-    {
-        var key = (language, hoveredItemId);
-        if (itemMemo.TryGetValue(key, out var cached))
-            return cached;
-
-        var resolved = ResolveItem(language, hoveredItemId);
-        itemMemo[key] = resolved;
-        return resolved;
-    }
+    public SubjectNames GetItem(GameLanguage language, uint hoveredItemId)
+        => Memo(itemMemo, (Language: language, ItemId: hoveredItemId),
+            static key => ResolveItem(key.Language, key.ItemId));
 
     /// <summary>
     /// Resolves what a cast bar shows. The id only means an action row when the client says the
     /// cast is an action - mounting, interacting and the rest number their own sheets from one.
     /// </summary>
     public string? GetCastName(GameLanguage language, byte actionType, uint actionId)
-    {
-        var key = (language, actionType, actionId);
-        if (castMemo.TryGetValue(key, out var cached))
-            return cached;
-
-        var resolved = ResolveCastName(language, CastActionSources.FromActionType(actionType), actionId);
-        castMemo[key] = resolved;
-        return resolved;
-    }
+        => Memo(castMemo, (Language: language, ActionType: actionType, ActionId: actionId),
+            static key => ResolveCastName(key.Language, CastActionSources.FromActionType(key.ActionType), key.ActionId));
 
     /// <summary>
     /// Resolves what an action tooltip shows. Action and trait descriptions live in a parallel
     /// "transient" sheet at the same row id, not on the row the name comes from.
     /// </summary>
-    public ActionNames GetActionDetail(GameLanguage language, DetailKind kind, uint actionId)
-    {
-        var key = (language, kind, actionId);
-        if (detailMemo.TryGetValue(key, out var cached))
-            return cached;
-
-        var resolved = ResolveActionDetail(language, kind, actionId);
-        detailMemo[key] = resolved;
-        return resolved;
-    }
+    public SubjectNames GetActionDetail(GameLanguage language, DetailKind kind, uint actionId)
+        => Memo(detailMemo, (Language: language, Kind: kind, ActionId: actionId),
+            static key => ResolveActionDetail(key.Language, key.Kind, key.ActionId));
 
     public void Clear()
     {
@@ -99,6 +70,19 @@ public sealed class NameCatalog
         addonMemo.Clear();
         castMemo.Clear();
         detailMemo.Clear();
+    }
+
+    /// <summary>
+    /// A sheet lookup costs a string evaluation, and the cast bars ask for the same name every
+    /// frame, so each answer is kept until something invalidates it.
+    /// </summary>
+    private static TValue Memo<TKey, TValue>(Dictionary<TKey, TValue> memo, TKey key, Func<TKey, TValue> resolve)
+        where TKey : notnull
+    {
+        if (!memo.TryGetValue(key, out var cached))
+            memo[key] = cached = resolve(key);
+
+        return cached;
     }
 
     private static string? ResolveCastName(GameLanguage language, CastNameSource source, uint actionId) => source switch
@@ -121,58 +105,58 @@ public sealed class NameCatalog
         _ => null,
     };
 
-    private static ActionNames ResolveActionDetail(GameLanguage language, DetailKind kind, uint actionId) => kind switch
+    private static SubjectNames ResolveActionDetail(GameLanguage language, DetailKind kind, uint actionId) => kind switch
     {
         DetailKind.Action => ResolveAction(language, actionId),
-        DetailKind.Trait => new ActionNames(
+        DetailKind.Trait => new SubjectNames(
             Row<Trait>(language, actionId, static row => row.Name),
             null,
             Row<TraitTransient>(language, actionId, static row => row.Description)),
-        DetailKind.GeneralAction => new ActionNames(
+        DetailKind.GeneralAction => new SubjectNames(
             Row<GeneralAction>(language, actionId, static row => row.Name),
             null,
             Row<GeneralAction>(language, actionId, static row => row.Description)),
-        DetailKind.MainCommand => new ActionNames(
+        DetailKind.MainCommand => new SubjectNames(
             Row<MainCommand>(language, actionId, static row => row.Name),
             null,
             Row<MainCommand>(language, actionId, static row => row.Description)),
-        DetailKind.ExtraCommand => new ActionNames(
+        DetailKind.ExtraCommand => new SubjectNames(
             Row<ExtraCommand>(language, actionId, static row => row.Name),
             null,
             Row<ExtraCommand>(language, actionId, static row => row.Description)),
-        DetailKind.BuddyAction => new ActionNames(
+        DetailKind.BuddyAction => new SubjectNames(
             Row<BuddyAction>(language, actionId, static row => row.Name),
             null,
             Row<BuddyAction>(language, actionId, static row => row.Description)),
-        DetailKind.Companion => new ActionNames(
+        DetailKind.Companion => new SubjectNames(
             Row<Companion>(language, actionId, static row => row.Singular),
             null,
             Row<CompanionTransient>(language, actionId, static row => row.Description)),
-        DetailKind.Mount => new ActionNames(
+        DetailKind.Mount => new SubjectNames(
             Row<Mount>(language, actionId, static row => row.Singular),
             null,
             Row<MountTransient>(language, actionId, static row => row.Description)),
-        DetailKind.Ornament => new ActionNames(
+        DetailKind.Ornament => new SubjectNames(
             Row<Ornament>(language, actionId, static row => row.Singular),
             null,
             null),
-        _ => new ActionNames(null, null, null),
+        _ => new SubjectNames(null, null, null),
     };
 
     /// <summary>
     /// Resolves a combat action, whose category - ability, weaponskill, spell - lives on a sheet of
     /// its own. No other detail sheet carries a category the game gives a name to.
     /// </summary>
-    private static ActionNames ResolveAction(GameLanguage language, uint actionId)
+    private static SubjectNames ResolveAction(GameLanguage language, uint actionId)
     {
         if (GetSheet<LuminaAction>(language)?.GetRowOrDefault(actionId) is not { } row)
-            return new ActionNames(null, null, null);
+            return new SubjectNames(null, null, null);
 
         var category = row.ActionCategory.ValueNullable is { } actionCategory
             ? Usable(Text(language, actionCategory.Name))
             : null;
 
-        return new ActionNames(
+        return new SubjectNames(
             Usable(Text(language, row.Name)),
             category,
             Row<ActionTransient>(language, actionId, static transient => transient.Description));
@@ -191,25 +175,25 @@ public sealed class NameCatalog
             ? Plugin.SeStringEvaluator.Evaluate(text, default, clientLanguage).ExtractText()
             : text.ExtractText();
 
-    private static ItemNames ResolveItem(GameLanguage language, uint hoveredItemId)
+    private static SubjectNames ResolveItem(GameLanguage language, uint hoveredItemId)
     {
         if (ItemIdNormalizer.IsEventItem(hoveredItemId))
         {
             var eventSheet = GetSheet<EventItem>(language);
             return eventSheet?.GetRowOrDefault(hoveredItemId) is { } eventRow
-                ? new ItemNames(Usable(Text(language, eventRow.Name)), null, null)
-                : new ItemNames(null, null, null);
+                ? new SubjectNames(Usable(Text(language, eventRow.Name)), null, null)
+                : new SubjectNames(null, null, null);
         }
 
         var sheet = GetSheet<Item>(language);
         if (sheet?.GetRowOrDefault(ItemIdNormalizer.ToBaseItemId(hoveredItemId)) is not { } row)
-            return new ItemNames(null, null, null);
+            return new SubjectNames(null, null, null);
 
         var category = row.ItemUICategory.ValueNullable is { } uiCategory
             ? Usable(Text(language, uiCategory.Name))
             : null;
 
-        return new ItemNames(
+        return new SubjectNames(
             Usable(Text(language, row.Name)),
             category,
             Usable(Text(language, row.Description)));

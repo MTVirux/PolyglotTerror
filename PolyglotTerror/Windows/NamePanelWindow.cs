@@ -16,7 +16,8 @@ namespace PolyglotTerror.Windows;
 /// </remarks>
 public sealed class NamePanelWindow : Window
 {
-    private const float Width = 300f;
+    /// <summary>The panel's fixed width, which the caller uses to pick a side of the tooltip.</summary>
+    public const float Width = 300f;
     private const float TagScale = 0.8f;
     private const float NameScale = 1.15f;
 
@@ -45,9 +46,6 @@ public sealed class NamePanelWindow : Window
 
     /// <summary>Where the panel's top left corner goes, in screen pixels.</summary>
     public Vector2 Anchor { get; set; }
-
-    /// <summary>The width the caller should assume when deciding which side of the tooltip to use.</summary>
-    public static float ExpectedWidth => Width;
 
     /// <summary>
     /// The height the panel took the last time it drew, or zero before it has ever drawn. The window

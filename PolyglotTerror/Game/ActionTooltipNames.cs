@@ -12,13 +12,9 @@ namespace PolyglotTerror.Game;
 /// </summary>
 public sealed class ActionTooltipNames : TooltipNamePanel
 {
-    // Rows of the game's own UI text sheet, so the panel's labels follow the client's language.
-    private const uint CategoryLabel = 7871;
-    private const uint DescriptionLabel = 543;
-
     private DetailKind kind;
     private uint actionId;
-    private ActionNames client = new(null, null, null);
+    private SubjectNames client = new(null, null, null);
 
     public ActionTooltipNames(Configuration config, NameCatalog names, NamePanelWindow window)
         : base(config, names, window, "ActionDetail")

@@ -82,7 +82,6 @@ public sealed class Plugin : IDalamudPlugin
         ClientState.LevelChanged -= OnLevelChanged;
         CommandManager.RemoveHandler(CommandName);
         windowSystem.RemoveAllWindows();
-        configWindow.Dispose();
         castBars.Dispose();
         actionNames.Dispose();
         itemNames.Dispose();

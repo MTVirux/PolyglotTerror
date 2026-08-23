@@ -25,6 +25,10 @@ public abstract unsafe class TooltipNamePanel : IDisposable
 {
     private const int IdleFramesBeforeClose = 10;
 
+    // Rows of the game's own UI text sheet, so the panel's labels follow the client's language.
+    protected const uint CategoryLabel = 7871;
+    protected const uint DescriptionLabel = 543;
+
     private readonly string addonName;
     private readonly NamePanelWindow window;
 
@@ -168,7 +172,7 @@ public abstract unsafe class TooltipNamePanel : IDisposable
         return PanelPlacement.Beside(
             new Vector2(tooltip->X, tooltip->Y),
             tooltipWidth,
-            new Vector2(NamePanelWindow.ExpectedWidth, window.LastHeight),
+            new Vector2(NamePanelWindow.Width, window.LastHeight),
             gap,
             offsetY,
             new Vector2(device->Width, device->Height));
@@ -214,13 +218,7 @@ public abstract unsafe class TooltipNamePanel : IDisposable
     {
         var tooltip = Tooltip();
 
-        if (AltHeld || !Showing(tooltip))
-        {
-            Idle();
-            return;
-        }
-
-        if (sections.Count == 0)
+        if (sections.Count == 0 || AltHeld || !Showing(tooltip))
         {
             Idle();
             return;

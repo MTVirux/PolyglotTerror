@@ -9,14 +9,10 @@ namespace PolyglotTerror.Game;
 /// <summary>The panel of translated names beside the item tooltip.</summary>
 public sealed unsafe class ItemTooltipNames : TooltipNamePanel
 {
-    // Rows of the game's own UI text sheet, so the panel's labels follow the client's language.
-    private const uint CategoryLabel = 7871;
-    private const uint DescriptionLabel = 543;
-
     private readonly AddonInspector inspector;
 
     private uint itemId;
-    private ItemNames client = new(null, null, null);
+    private SubjectNames client = new(null, null, null);
     private bool dumpArmed;
 
     public ItemTooltipNames(

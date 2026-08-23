@@ -64,7 +64,7 @@ public sealed unsafe class AddonInspector
             }
             else
             {
-                Plugin.Log.Information($"{indent}[{i}] id={node->NodeId} {node->Type} visible={visible} {box}{Texture(node)}");
+                Plugin.Log.Information($"{indent}[{i}] id={node->NodeId} {node->Type} visible={visible} {box}");
             }
 
             if ((ushort)node->Type < 1000)
@@ -74,64 +74,6 @@ public sealed unsafe class AddonInspector
             if (component != null)
                 DumpList(&component->UldManager, depth + 1);
         }
-    }
-
-    /// <summary>
-    /// The texture a nine grid or image draws, so its look can be reproduced on a node of our own
-    /// rather than guessed at from a path that may not exist.
-    /// </summary>
-    private static string Texture(AtkResNode* node)
-    {
-        AtkUldPartsList* list;
-        uint partId;
-        var offsets = string.Empty;
-
-        switch (node->Type)
-        {
-            case NodeType.NineGrid:
-                var grid = (AtkNineGridNode*)node;
-                list = grid->PartsList;
-                partId = grid->PartId;
-                offsets =
-                    $" offsets={grid->TopOffset},{grid->RightOffset},{grid->BottomOffset},{grid->LeftOffset}" +
-                    $" render={grid->PartsTypeRenderType} blend={grid->BlendMode}";
-                break;
-
-            case NodeType.Image:
-                var image = (AtkImageNode*)node;
-                list = image->PartsList;
-                partId = image->PartId;
-                break;
-
-            default:
-                return string.Empty;
-        }
-
-        if (list == null || partId >= list->PartCount)
-            return offsets;
-
-        var part = &list->Parts[partId];
-        var rect = $" partId={partId} part={part->U},{part->V} {part->Width}x{part->Height}";
-
-        // Every part in the list, not just the one this node points at - a nine grid either slices
-        // a single part with its offsets or draws nine of them, and only the rects tell us which.
-        var all = $" parts[{list->PartCount}]=";
-        for (var i = 0; i < list->PartCount && i < 12; i++)
-        {
-            var entry = &list->Parts[i];
-            all += $"({entry->U},{entry->V} {entry->Width}x{entry->Height})";
-        }
-
-        var asset = part->UldAsset;
-        if (asset == null)
-            return offsets + rect + all;
-
-        var resource = asset->AtkTexture.Resource;
-        if (resource == null || resource->TexFileResourceHandle == null)
-            return offsets + rect + all;
-
-        var path = resource->TexFileResourceHandle->ResourceHandle.FileName.ToString();
-        return $"{offsets}{rect}{all} tex=\"{path}\"";
     }
 
     /// <summary>
@@ -151,5 +93,4 @@ public sealed unsafe class AddonInspector
             return "unknown";
         }
     }
-
 }

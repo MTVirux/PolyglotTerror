@@ -5,7 +5,7 @@ using PolyglotTerror.Core;
 
 namespace PolyglotTerror.Windows;
 
-public sealed class ConfigWindow : Window, IDisposable
+public sealed class ConfigWindow : Window
 {
     private readonly Plugin plugin;
     private readonly Configuration configuration;
@@ -16,10 +16,6 @@ public sealed class ConfigWindow : Window, IDisposable
     {
         this.plugin = plugin;
         configuration = plugin.Configuration;
-    }
-
-    public void Dispose()
-    {
     }
 
     public override void Draw()

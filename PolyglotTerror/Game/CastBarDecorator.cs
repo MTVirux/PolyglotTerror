@@ -79,11 +79,6 @@ public sealed unsafe class CastBarDecorator : IDisposable
     {
         Plugin.AddonLifecycle.UnregisterListener(OnDraw, OnOverheadDraw, OnPartyListDraw, OnFinalize);
         RestoreTouchedNodes();
-        surfaces.Clear();
-        discoveredNodeIds.Clear();
-        lastWritten.Clear();
-        gameText.Clear();
-        touched.Clear();
         writer.Dispose();
     }
 
@@ -250,7 +245,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
                 resolved[entry.Language] = CastName(node, entry.Language, actionType, actionId);
         }
 
-        var composed = LineComposer.ComposeStandalone(resolved, config.Languages);
+        var composed = LineComposer.Compose(resolved, config.Languages);
         if (composed == null)
             return;
 

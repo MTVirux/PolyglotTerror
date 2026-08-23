@@ -16,9 +16,5 @@ public static class ItemIdNormalizer
         _ => itemId,
     };
 
-    public static bool IsHighQuality(uint itemId) => itemId is >= HighQualityOffset and < EventItemFloor;
-
-    public static bool IsCollectable(uint itemId) => itemId is >= CollectableOffset and < HighQualityOffset;
-
     public static bool IsEventItem(uint itemId) => itemId >= EventItemFloor;
 }
