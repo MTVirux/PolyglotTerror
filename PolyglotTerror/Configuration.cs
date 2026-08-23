@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Dalamud.Configuration;
 using Newtonsoft.Json;
@@ -101,17 +101,16 @@ public class Configuration : IPluginConfiguration
 
         if (sharedLanguages is { } inherited)
         {
-            // The one list the old config had becomes the starting point for every game language.
-            foreach (var language in Enum.GetValues<GameLanguage>())
-                LanguagesByClient.TryAdd(language, new List<LanguageEntry>(inherited));
-
+            // The one list the old config had belongs to whichever language the game is in now.
+            LanguagesByClient.TryAdd(clientLanguage, new List<LanguageEntry>(inherited));
             sharedLanguages = null;
             changed = true;
         }
 
         if (!LanguagesByClient.TryGetValue(clientLanguage, out var entries))
         {
-            entries = Defaults();
+            // A language the game has never run in starts with nothing but its own names.
+            entries = [];
             LanguagesByClient[clientLanguage] = entries;
             changed = true;
         }
@@ -124,14 +123,6 @@ public class Configuration : IPluginConfiguration
     }
 
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
-
-    private static List<LanguageEntry> Defaults() =>
-    [
-        new(GameLanguage.English, true),
-        new(GameLanguage.Japanese, true),
-        new(GameLanguage.German, false),
-        new(GameLanguage.French, false),
-    ];
 
     /// <summary>
     /// Rewrites a language list in place so it holds every language exactly once and has the
