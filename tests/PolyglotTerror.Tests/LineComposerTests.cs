@@ -23,7 +23,7 @@ public class LineComposerTests
     [Fact]
     public void Compose_appends_enabled_languages_in_configured_order()
     {
-        var result = LineComposer.Compose("Fire IV", Names(ja: "ファイジャ", de: "Feuga"), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.Compose("Fire IV", Names(ja: "ファイジャ", de: "Feuga"), JaThenDe);
 
         Assert.Equal("Fire IV\nファイジャ\nFeuga", result);
     }
@@ -33,7 +33,7 @@ public class LineComposerTests
     {
         var order = new LanguageEntry[] { new(GameLanguage.Japanese, false), new(GameLanguage.German, true) };
 
-        var result = LineComposer.Compose("Fire IV", Names(ja: "ファイジャ", de: "Feuga"), order, hideDuplicates: true);
+        var result = LineComposer.Compose("Fire IV", Names(ja: "ファイジャ", de: "Feuga"), order);
 
         Assert.Equal("Fire IV\nFeuga", result);
     }
@@ -41,23 +41,15 @@ public class LineComposerTests
     [Fact]
     public void Compose_drops_a_language_matching_a_line_already_shown()
     {
-        var result = LineComposer.Compose("Copper Ingot", Names(ja: "銅インゴット", de: "Copper Ingot"), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.Compose("Copper Ingot", Names(ja: "銅インゴット", de: "Copper Ingot"), JaThenDe);
 
         Assert.Equal("Copper Ingot\n銅インゴット", result);
     }
 
     [Fact]
-    public void Compose_keeps_duplicates_when_the_option_is_off()
-    {
-        var result = LineComposer.Compose("Copper Ingot", Names(ja: "銅インゴット", de: "Copper Ingot"), JaThenDe, hideDuplicates: false);
-
-        Assert.Equal("Copper Ingot\n銅インゴット\nCopper Ingot", result);
-    }
-
-    [Fact]
     public void Compose_drops_missing_and_blank_names()
     {
-        var result = LineComposer.Compose("Fire IV", Names(ja: null, de: "   "), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.Compose("Fire IV", Names(ja: null, de: "   "), JaThenDe);
 
         Assert.Null(result);
     }
@@ -65,7 +57,7 @@ public class LineComposerTests
     [Fact]
     public void Compose_returns_null_when_nothing_would_be_added()
     {
-        var result = LineComposer.Compose("Fire IV", Names(), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.Compose("Fire IV", Names(), JaThenDe);
 
         Assert.Null(result);
     }
@@ -73,7 +65,7 @@ public class LineComposerTests
     [Fact]
     public void Compose_works_without_an_original_line()
     {
-        var result = LineComposer.Compose(null, Names(ja: "ファイジャ", de: "Feuga"), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.Compose(null, Names(ja: "ファイジャ", de: "Feuga"), JaThenDe);
 
         Assert.Equal("ファイジャ\nFeuga", result);
     }
@@ -81,7 +73,7 @@ public class LineComposerTests
     [Fact]
     public void Compose_trims_each_line()
     {
-        var result = LineComposer.Compose("  Fire IV  ", Names(ja: " ファイジャ "), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.Compose("  Fire IV  ", Names(ja: " ファイジャ "), JaThenDe);
 
         Assert.Equal("Fire IV\nファイジャ", result);
     }
@@ -91,7 +83,7 @@ public class LineComposerTests
     {
         var order = new LanguageEntry[] { new(GameLanguage.Japanese, true), new(GameLanguage.German, false) };
 
-        var result = LineComposer.ComposeStandalone(Names(ja: "ファイジャ", de: "Feuga"), order, hideDuplicates: true);
+        var result = LineComposer.ComposeStandalone(Names(ja: "ファイジャ", de: "Feuga"), order);
 
         Assert.Equal("ファイジャ", result);
     }
@@ -99,7 +91,7 @@ public class LineComposerTests
     [Fact]
     public void ComposeStandalone_joins_every_enabled_language()
     {
-        var result = LineComposer.ComposeStandalone(Names(ja: "ファイジャ", de: "Feuga"), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.ComposeStandalone(Names(ja: "ファイジャ", de: "Feuga"), JaThenDe);
 
         Assert.Equal("ファイジャ\nFeuga", result);
     }
@@ -107,7 +99,7 @@ public class LineComposerTests
     [Fact]
     public void ComposeStandalone_returns_null_when_no_name_resolves()
     {
-        var result = LineComposer.ComposeStandalone(Names(), JaThenDe, hideDuplicates: true);
+        var result = LineComposer.ComposeStandalone(Names(), JaThenDe);
 
         Assert.Null(result);
     }

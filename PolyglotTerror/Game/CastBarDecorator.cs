@@ -248,7 +248,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
                 resolved[entry.Language] = CastName(node, entry.Language, actionType, actionId);
         }
 
-        var composed = LineComposer.ComposeStandalone(resolved, config.Languages, config.HideDuplicates);
+        var composed = LineComposer.ComposeStandalone(resolved, config.Languages);
         if (composed == null)
             return;
 

@@ -21,8 +21,7 @@ public static class LineComposer
     public static IReadOnlyList<string> BuildLines(
         string? original,
         IReadOnlyDictionary<GameLanguage, string?> names,
-        IReadOnlyList<LanguageEntry> order,
-        bool hideDuplicates)
+        IReadOnlyList<LanguageEntry> order)
     {
         var lines = new List<string>();
 
@@ -32,7 +31,7 @@ public static class LineComposer
             if (string.IsNullOrEmpty(text))
                 return;
 
-            if (hideDuplicates && Contains(lines, text))
+            if (Contains(lines, text))
                 return;
 
             lines.Add(text);
@@ -68,10 +67,9 @@ public static class LineComposer
     /// </summary>
     public static string? ComposeStandalone(
         IReadOnlyDictionary<GameLanguage, string?> names,
-        IReadOnlyList<LanguageEntry> order,
-        bool hideDuplicates)
+        IReadOnlyList<LanguageEntry> order)
     {
-        var lines = BuildLines(null, names, order, hideDuplicates);
+        var lines = BuildLines(null, names, order);
         return lines.Count > 0 ? string.Join(Separator, lines) : null;
     }
 
@@ -82,10 +80,9 @@ public static class LineComposer
     public static string? Compose(
         string? original,
         IReadOnlyDictionary<GameLanguage, string?> names,
-        IReadOnlyList<LanguageEntry> order,
-        bool hideDuplicates)
+        IReadOnlyList<LanguageEntry> order)
     {
-        var lines = BuildLines(original, names, order, hideDuplicates);
+        var lines = BuildLines(original, names, order);
         return lines.Count > 1 ? string.Join(Separator, lines) : null;
     }
 }
