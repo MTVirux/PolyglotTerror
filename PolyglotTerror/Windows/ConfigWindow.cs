@@ -40,7 +40,8 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.TextDisabled($"Saved separately for each game language. The game is in {client}.");
         ImGui.SameLine();
         HelpMarker(
-            "Lines are shown in this order. The first enabled language is the primary one." +
+            "Lines are shown in this order. Where there is room for one line only, the first enabled " +
+            "language other than the game's own is shown." +
             "\n\n" +
             "Every game language keeps its own set, so switching the client to another language " +
             "brings up the set you picked for that one.");

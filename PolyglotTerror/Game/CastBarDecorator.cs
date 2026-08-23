@@ -233,7 +233,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
         if (policy == LanguagePolicy.PrimaryOnly)
         {
-            var primary = LineComposer.Primary(config.Languages);
+            var primary = LineComposer.Primary(config.Languages, config.ClientLanguage);
             var name = primary is { } language ? CastName(node, language, actionType, actionId) : null;
             if (!string.IsNullOrEmpty(name))
                 Write(node, name);

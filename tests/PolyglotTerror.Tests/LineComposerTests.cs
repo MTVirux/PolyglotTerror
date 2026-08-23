@@ -109,12 +109,25 @@ public class LineComposerTests
     {
         var order = new LanguageEntry[]
         {
-            new(GameLanguage.English, false),
+            new(GameLanguage.French, false),
             new(GameLanguage.German, true),
             new(GameLanguage.Japanese, true),
         };
 
-        Assert.Equal(GameLanguage.German, LineComposer.Primary(order));
+        Assert.Equal(GameLanguage.German, LineComposer.Primary(order, GameLanguage.English));
+    }
+
+    [Fact]
+    public void Primary_skips_the_game_s_own_language()
+    {
+        var order = new LanguageEntry[]
+        {
+            new(GameLanguage.English, true),
+            new(GameLanguage.Japanese, true),
+            new(GameLanguage.German, true),
+        };
+
+        Assert.Equal(GameLanguage.Japanese, LineComposer.Primary(order, GameLanguage.English));
     }
 
     [Fact]
@@ -122,6 +135,18 @@ public class LineComposerTests
     {
         var order = new LanguageEntry[] { new(GameLanguage.English, false) };
 
-        Assert.Null(LineComposer.Primary(order));
+        Assert.Null(LineComposer.Primary(order, GameLanguage.English));
+    }
+
+    [Fact]
+    public void Primary_is_null_when_only_the_game_s_own_language_is_enabled()
+    {
+        var order = new LanguageEntry[]
+        {
+            new(GameLanguage.English, true),
+            new(GameLanguage.Japanese, false),
+        };
+
+        Assert.Null(LineComposer.Primary(order, GameLanguage.English));
     }
 }

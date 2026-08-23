@@ -7,11 +7,15 @@ public static class LineComposer
 {
     public const string Separator = "\n";
 
-    public static GameLanguage? Primary(IReadOnlyList<LanguageEntry> order)
+    /// <summary>
+    /// The first enabled language other than the game's own, which is what a surface with room for
+    /// a single line shows. The game's own name is already drawn there, so repeating it says nothing.
+    /// </summary>
+    public static GameLanguage? Primary(IReadOnlyList<LanguageEntry> order, GameLanguage own)
     {
         foreach (var entry in order)
         {
-            if (entry.Enabled)
+            if (entry.Enabled && entry.Language != own)
                 return entry.Language;
         }
 
