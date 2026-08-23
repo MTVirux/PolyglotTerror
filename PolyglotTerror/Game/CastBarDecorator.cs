@@ -142,7 +142,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
         var node = ResolveTextNode(addon, surface, clientName);
         if (node != null)
-            Decorate(args.AddonName, node, actionType, actionId, surface.Policy, OffsetFor(surface.Source));
+            Decorate(args.AddonName, node, actionType, actionId, OffsetFor(surface.Source));
     }
 
     private void OnOverheadDraw(AddonEvent type, AddonArgs args)
@@ -168,7 +168,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             if (clientName == null || !HoldsActionName(node, clientName))
                 continue;
 
-            Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.FullStack, config.OverheadCastBarTextOffset);
+            Decorate(args.AddonName, node, actionType, actionId, config.OverheadCastBarTextOffset);
         }
     }
 
@@ -191,7 +191,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
             var node = FindTextNode(addon->UldManager, clientName);
             if (node != null)
-                Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.PrimaryOnly, 0);
+                DecorateSingle(args.AddonName, node, actionType, actionId, config.PartyListLanguage);
         }
     }
 
@@ -227,19 +227,21 @@ public sealed unsafe class CastBarDecorator : IDisposable
         return null;
     }
 
-    private void Decorate(string addonName, AtkTextNode* node, byte actionType, uint actionId, LanguagePolicy policy, int offset)
+    /// <summary>
+    /// Writes one language and leaves the node where it is, for a bar with room for a single line.
+    /// </summary>
+    private void DecorateSingle(string addonName, AtkTextNode* node, byte actionType, uint actionId, GameLanguage language)
+    {
+        Remember(addonName, node);
+
+        var name = CastName(node, language, actionType, actionId);
+        if (!string.IsNullOrEmpty(name))
+            Write(node, name);
+    }
+
+    private void Decorate(string addonName, AtkTextNode* node, byte actionType, uint actionId, int offset)
     {
         var original = Remember(addonName, node);
-
-        if (policy == LanguagePolicy.PrimaryOnly)
-        {
-            var primary = LineComposer.Primary(config.Languages, config.ClientLanguage);
-            var name = primary is { } language ? CastName(node, language, actionType, actionId) : null;
-            if (!string.IsNullOrEmpty(name))
-                Write(node, name);
-
-            return;
-        }
 
         var resolved = new Dictionary<GameLanguage, string?>();
         foreach (var entry in config.Languages)

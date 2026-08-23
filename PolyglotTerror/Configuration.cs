@@ -51,6 +51,21 @@ public class Configuration : IPluginConfiguration
     [JsonIgnore]
     public List<LanguageEntry> Languages => LanguagesByClient[ClientLanguage];
 
+    /// <summary>
+    /// The party list has room for one line per member, so it shows a single language rather than
+    /// the whole list. Kept per game language for the same reason the lists are.
+    /// </summary>
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+    public Dictionary<GameLanguage, GameLanguage> PartyListLanguageByClient { get; set; } = new();
+
+    /// <summary>The language the party list shows while the game is in the language it is in.</summary>
+    [JsonIgnore]
+    public GameLanguage PartyListLanguage
+    {
+        get => PartyListLanguageByClient[ClientLanguage];
+        set => PartyListLanguageByClient[ClientLanguage] = value;
+    }
+
     public bool ShowItemName { get; set; } = true;
 
     public bool ShowItemCategory { get; set; }
@@ -148,6 +163,13 @@ public class Configuration : IPluginConfiguration
             // Lists written before this ran carry the order the languages happen to be declared in.
             foreach (var (language, list) in LanguagesByClient)
                 MoveToFront(list, language);
+        }
+
+        // The party list starts out showing the language the game is in.
+        if (!PartyListLanguageByClient.TryGetValue(clientLanguage, out var partyLanguage) || !Enum.IsDefined(partyLanguage))
+        {
+            PartyListLanguageByClient[clientLanguage] = clientLanguage;
+            changed = true;
         }
 
         if (Repair(entries, clientLanguage))

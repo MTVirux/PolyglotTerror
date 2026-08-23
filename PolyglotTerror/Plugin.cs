@@ -97,13 +97,13 @@ public sealed class Plugin : IDalamudPlugin
     private void RegisterCastBars()
     {
         if (Configuration.DecorateOwnCastBar)
-            castBars.Register(new CastBarSurface("_CastBar", 0, CastSource.Self, LanguagePolicy.FullStack));
+            castBars.Register(new CastBarSurface("_CastBar", 0, CastSource.Self));
 
         if (Configuration.DecorateTargetBars)
         {
-            castBars.Register(new CastBarSurface("_TargetInfo", 12, CastSource.Target, LanguagePolicy.FullStack));
-            castBars.Register(new CastBarSurface("_TargetInfoCastBar", 4, CastSource.Target, LanguagePolicy.FullStack));
-            castBars.Register(new CastBarSurface("_FocusTargetInfo", 5, CastSource.FocusTarget, LanguagePolicy.FullStack));
+            castBars.Register(new CastBarSurface("_TargetInfo", 12, CastSource.Target));
+            castBars.Register(new CastBarSurface("_TargetInfoCastBar", 4, CastSource.Target));
+            castBars.Register(new CastBarSurface("_FocusTargetInfo", 5, CastSource.FocusTarget));
         }
 
         if (Configuration.DecorateOverheadBars)

@@ -1,6 +1,7 @@
 ﻿using System;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using PolyglotTerror.Core;
 
 namespace PolyglotTerror.Windows;
 
@@ -40,8 +41,7 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.TextDisabled($"Saved separately for each game language. The game is in {client}.");
         ImGui.SameLine();
         HelpMarker(
-            "Lines are shown in this order. Where there is room for one line only, the first enabled " +
-            "language other than the game's own is shown." +
+            "Lines are shown in this order. The first enabled language is the primary one." +
             "\n\n" +
             "Every game language keeps its own set, so switching the client to another language " +
             "brings up the set you picked for that one.");
@@ -173,7 +173,37 @@ public sealed class ConfigWindow : Window, IDisposable
         Option("Your own cast bar", configuration.DecorateOwnCastBar, value => configuration.DecorateOwnCastBar = value);
         Option("Target and focus target cast bars", configuration.DecorateTargetBars, value => configuration.DecorateTargetBars = value);
         Option("Cast bars over enemies", configuration.DecorateOverheadBars, value => configuration.DecorateOverheadBars = value);
-        Option("Party list (primary language only)", configuration.DecoratePartyList, value => configuration.DecoratePartyList = value);
+        Option("Party list", configuration.DecoratePartyList, value => configuration.DecoratePartyList = value);
+        DrawPartyListLanguage();
+    }
+
+    /// <summary>
+    /// The party list has room for one line per member, so it picks a single language of its own
+    /// instead of following the list above.
+    /// </summary>
+    private void DrawPartyListLanguage()
+    {
+        ImGui.BeginDisabled(!configuration.DecoratePartyList);
+
+        var current = configuration.PartyListLanguage;
+        if (ImGui.BeginCombo("Party list language", current.ToString()))
+        {
+            foreach (var language in Enum.GetValues<GameLanguage>())
+            {
+                if (!ImGui.Selectable(language.ToString(), language == current))
+                    continue;
+
+                configuration.PartyListLanguage = language;
+                Apply();
+            }
+
+            ImGui.EndCombo();
+        }
+
+        ImGui.EndDisabled();
+        Help(
+            "The party list shows this one language instead of the whole list, and starts on the " +
+            "language the game is in. Saved separately for each game language.");
     }
 
     private void DrawDisplay()
