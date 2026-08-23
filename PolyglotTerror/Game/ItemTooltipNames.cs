@@ -30,8 +30,6 @@ public sealed unsafe class ItemTooltipNames : TooltipNamePanel
 
     protected override bool Wanted => Config.DecorateTooltip;
 
-    protected override bool CycleWithScroll => Config.CycleLanguagesWithScroll;
-
     protected override int Gap => Config.TooltipPanelGap;
 
     protected override int OffsetY => Config.TooltipPanelOffsetY;

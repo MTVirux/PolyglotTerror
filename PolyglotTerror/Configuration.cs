@@ -56,17 +56,6 @@ public class Configuration : IPluginConfiguration
 
     public bool DecoratePartyList { get; set; } = true;
 
-    public bool HideDuplicates { get; set; } = true;
-
-    /// <summary>
-    /// Shows one language at a time in the item panel, stepped through with the scroll wheel while
-    /// an item is hovered, rather than stacking every enabled language at once.
-    /// </summary>
-    public bool CycleLanguagesWithScroll { get; set; } = true;
-
-    /// <summary>The same, for the action panel.</summary>
-    public bool CycleActionLanguagesWithScroll { get; set; } = true;
-
     /// <summary>
     /// Moves the cast bar text up or down without resizing the bar itself.
     /// </summary>

@@ -6,7 +6,6 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using PolyglotTerror.Core;
 using PolyglotTerror.Windows;
@@ -30,7 +29,6 @@ public abstract unsafe class TooltipNamePanel : IDisposable
     private readonly NamePanelWindow window;
 
     private List<NameSection> sections = [];
-    private GameLanguage? selected;
     private int idleFrames;
     private bool enabled;
     private bool disposed;
@@ -55,9 +53,6 @@ public abstract unsafe class TooltipNamePanel : IDisposable
 
     /// <summary>Whether the user wants this panel at all.</summary>
     protected abstract bool Wanted { get; }
-
-    /// <summary>Show one language at a time, stepped with the scroll wheel, rather than all of them.</summary>
-    protected abstract bool CycleWithScroll { get; }
 
     /// <summary>Distance between the tooltip and the panel.</summary>
     protected abstract int Gap { get; }
@@ -123,7 +118,7 @@ public abstract unsafe class TooltipNamePanel : IDisposable
         if (!wanted || string.IsNullOrEmpty(text))
             return;
 
-        if (Config.HideDuplicates && string.Equals(text, clientValue?.Trim(), StringComparison.Ordinal))
+        if (string.Equals(text, clientValue?.Trim(), StringComparison.Ordinal))
             return;
 
         block.Add(new NameLine(Tag(labelRow), text));
@@ -180,42 +175,21 @@ public abstract unsafe class TooltipNamePanel : IDisposable
     }
 
     /// <summary>
-    /// The languages the wheel steps through: the enabled ones, minus the client's own, which the
-    /// tooltip is already showing.
+    /// The languages shown: the enabled ones, minus the client's own, which the tooltip is already
+    /// showing.
     /// </summary>
-    private List<GameLanguage> Cycle()
+    private List<GameLanguage> OtherLanguages()
     {
         var client = ClientLanguage;
-        var cycle = new List<GameLanguage>();
+        var others = new List<GameLanguage>();
 
         foreach (var entry in Config.Languages)
         {
             if (entry.Enabled && entry.Language != client)
-                cycle.Add(entry.Language);
+                others.Add(entry.Language);
         }
 
-        return cycle;
-    }
-
-    /// <summary>
-    /// Steps the shown language when the wheel moves. The delta is only read, never swallowed, so
-    /// whatever is under the cursor still scrolls too.
-    /// </summary>
-    private void StepOnScroll()
-    {
-        var wheel = UIInputData.Instance()->CursorInputs.MouseWheel;
-        if (wheel == 0)
-            return;
-
-        var cycle = Cycle();
-        if (cycle.Count == 0)
-            return;
-
-        var current = selected is null ? 0 : Math.Max(0, cycle.IndexOf(selected.Value));
-        var next = (current + (wheel > 0 ? 1 : -1) + cycle.Count) % cycle.Count;
-
-        selected = cycle[next];
-        Rebuild();
+        return others;
     }
 
     /// <summary>
@@ -231,9 +205,6 @@ public abstract unsafe class TooltipNamePanel : IDisposable
             Idle();
             return;
         }
-
-        if (CycleWithScroll)
-            StepOnScroll();
 
         if (sections.Count == 0)
         {
@@ -270,21 +241,7 @@ public abstract unsafe class TooltipNamePanel : IDisposable
         if (!Wanted || !TryResolveSubject())
             return composed;
 
-        var cycle = Cycle();
-        if (cycle.Count == 0)
-            return composed;
-
-        if (CycleWithScroll)
-        {
-            // A language can leave the cycle while it is the one being shown.
-            if (selected is null || !cycle.Contains(selected.Value))
-                selected = cycle[0];
-
-            Append(composed, selected.Value);
-            return composed;
-        }
-
-        foreach (var language in cycle)
+        foreach (var language in OtherLanguages())
             Append(composed, language);
 
         return composed;

@@ -95,8 +95,6 @@ public sealed class ConfigWindow : Window, IDisposable
 
         DrawPanelPlacement(
             "Item translations appear beside the tooltip, and hide with it.",
-            configuration.CycleLanguagesWithScroll,
-            value => configuration.CycleLanguagesWithScroll = value,
             configuration.TooltipPanelGap,
             value => configuration.TooltipPanelGap = value,
             configuration.TooltipPanelOffsetY,
@@ -117,8 +115,6 @@ public sealed class ConfigWindow : Window, IDisposable
 
         DrawPanelPlacement(
             "Action translations appear beside the tooltip, and hide with it.",
-            configuration.CycleActionLanguagesWithScroll,
-            value => configuration.CycleActionLanguagesWithScroll = value,
             configuration.ActionPanelGap,
             value => configuration.ActionPanelGap = value,
             configuration.ActionPanelOffsetY,
@@ -130,21 +126,12 @@ public sealed class ConfigWindow : Window, IDisposable
     /// <summary>The knobs both name panels have, drawn against whichever one's settings are passed in.</summary>
     private void DrawPanelPlacement(
         string blurb,
-        bool cycle,
-        Action<bool> setCycle,
         int gap,
         Action<int> setGap,
         int offsetY,
         Action<int> setOffsetY)
     {
         ImGui.Spacing();
-        Option(
-            "Show one language at a time, scroll to change it",
-            cycle,
-            setCycle,
-            "Off shows every language at once, one panel each, stacked top to bottom.\n\n" +
-            "Scrolling still scrolls whatever is under the cursor as well.");
-
         Slider(
             "Gap beside the tooltip",
             gap,
@@ -183,11 +170,6 @@ public sealed class ConfigWindow : Window, IDisposable
     {
         if (!Section("Display"))
             return;
-
-        Option(
-            "Hide a language when its name is identical to one already shown",
-            configuration.HideDuplicates,
-            value => configuration.HideDuplicates = value);
 
         Slider(
             "Cast bar text offset",

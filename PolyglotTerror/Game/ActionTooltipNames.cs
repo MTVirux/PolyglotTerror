@@ -27,8 +27,6 @@ public sealed class ActionTooltipNames : TooltipNamePanel
 
     protected override bool Wanted => Config.DecorateActionTooltip;
 
-    protected override bool CycleWithScroll => Config.CycleActionLanguagesWithScroll;
-
     protected override int Gap => Config.ActionPanelGap;
 
     protected override int OffsetY => Config.ActionPanelOffsetY;
