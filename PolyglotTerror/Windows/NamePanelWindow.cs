@@ -18,6 +18,7 @@ public sealed class NamePanelWindow : Window
 {
     private const float Width = 300f;
     private const float TagScale = 0.8f;
+    private const float NameScale = 1.15f;
 
     private static readonly Vector4 LanguageColour = new(0.65f, 0.62f, 0.55f, 1f);
 
@@ -79,7 +80,7 @@ public sealed class NamePanelWindow : Window
                     ImGui.Spacing();
 
                 Tag(lines[j].Tag);
-                ImGui.TextWrapped(lines[j].Text);
+                Line(lines[j]);
             }
         }
 
@@ -94,6 +95,14 @@ public sealed class NamePanelWindow : Window
 
         ImGui.SetWindowFontScale(TagScale);
         ImGui.TextDisabled(text);
+        ImGui.SetWindowFontScale(1f);
+    }
+
+    /// <summary>The line's own text, drawn larger when it is the subject's name.</summary>
+    private static void Line(NameLine line)
+    {
+        ImGui.SetWindowFontScale(line.Emphasised ? NameScale : 1f);
+        ImGui.TextWrapped(line.Text);
         ImGui.SetWindowFontScale(1f);
     }
 }

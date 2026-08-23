@@ -111,8 +111,21 @@ public abstract unsafe class TooltipNamePanel : IDisposable
     /// <summary>What the game itself calls this field, in the language the client is running in.</summary>
     protected string Tag(uint labelRow) => Names.GetUiText(ClientLanguage, labelRow) ?? string.Empty;
 
+    /// <summary>Adds the subject's own name, which is drawn larger and needs no label of its own.</summary>
+    protected void AddName(List<NameLine> block, bool wanted, string? value, string? clientValue)
+        => Add(block, string.Empty, true, wanted, value, clientValue);
+
     /// <summary>Adds one line, unless it is switched off, empty, or a repeat of the client's own text.</summary>
     protected void Add(List<NameLine> block, uint labelRow, bool wanted, string? value, string? clientValue)
+        => Add(block, Tag(labelRow), false, wanted, value, clientValue);
+
+    private static void Add(
+        List<NameLine> block,
+        string tag,
+        bool emphasised,
+        bool wanted,
+        string? value,
+        string? clientValue)
     {
         var text = value?.Trim();
         if (!wanted || string.IsNullOrEmpty(text))
@@ -121,7 +134,7 @@ public abstract unsafe class TooltipNamePanel : IDisposable
         if (string.Equals(text, clientValue?.Trim(), StringComparison.Ordinal))
             return;
 
-        block.Add(new NameLine(Tag(labelRow), text));
+        block.Add(new NameLine(tag, text, emphasised));
     }
 
     private static bool Showing(AtkUnitBase* tooltip)

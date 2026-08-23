@@ -10,7 +10,6 @@ namespace PolyglotTerror.Game;
 public sealed unsafe class ItemTooltipNames : TooltipNamePanel
 {
     // Rows of the game's own UI text sheet, so the panel's labels follow the client's language.
-    private const uint NameLabel = 1898;
     private const uint CategoryLabel = 7871;
     private const uint DescriptionLabel = 543;
 
@@ -55,7 +54,7 @@ public sealed unsafe class ItemTooltipNames : TooltipNamePanel
         var other = Names.GetItem(language, itemId);
         var block = new List<NameLine>();
 
-        Add(block, NameLabel, Config.ShowItemName, other.Name, client.Name);
+        AddName(block, Config.ShowItemName, other.Name, client.Name);
         Add(block, CategoryLabel, Config.ShowItemCategory, other.Category, client.Category);
         Add(block, DescriptionLabel, Config.ShowItemDescription, other.Description, client.Description);
 
