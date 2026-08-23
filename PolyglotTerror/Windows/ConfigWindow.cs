@@ -42,7 +42,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawLanguages()
     {
-        Heading("Languages");
+        if (!Section("Languages"))
+            return;
 
         var languages = configuration.Languages;
         for (var i = 0; i < languages.Count; i++)
@@ -74,7 +75,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawItems()
     {
-        Heading("Items");
+        if (!Section("Items"))
+            return;
 
         // Both sections label their checkboxes the same way, so they need separate ID scopes.
         ImGui.PushID("items");
@@ -99,7 +101,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawActions()
     {
-        Heading("Actions");
+        if (!Section("Actions"))
+            return;
 
         ImGui.PushID("actions");
 
@@ -162,7 +165,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawSurfaces()
     {
-        Heading("Where to show translations");
+        if (!Section("Where to show translations"))
+            return;
 
         Option("Item tooltips", configuration.DecorateTooltip, value => configuration.DecorateTooltip = value);
         Option("Action tooltips", configuration.DecorateActionTooltip, value => configuration.DecorateActionTooltip = value);
@@ -176,7 +180,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
     private void DrawDisplay()
     {
-        Heading("Display");
+        if (!Section("Display"))
+            return;
 
         Option(
             "Hide a language when its name is identical to one already shown",
@@ -219,11 +224,13 @@ public sealed class ConfigWindow : Window, IDisposable
         plugin.Names.Clear();
     }
 
-    private static void Heading(string label)
+    private static bool Section(string label)
     {
         ImGui.Spacing();
-        ImGui.Text(label);
-        ImGui.Separator();
+        if (!ImGui.CollapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen))
+            return false;
+
         ImGui.Spacing();
+        return true;
     }
 }
