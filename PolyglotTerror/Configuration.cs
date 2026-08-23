@@ -9,7 +9,7 @@ namespace PolyglotTerror;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    private const int CurrentVersion = 4;
+    private const int CurrentVersion = 5;
 
     /// <summary>The version that first put each list's own language at the top of it.</summary>
     private const int PrimaryFirstVersion = 4;
@@ -25,6 +25,10 @@ public class Configuration : IPluginConfiguration
     public const int MinTooltipPanelOffsetY = -100;
 
     public const int MaxTooltipPanelOffsetY = 100;
+
+    /// <summary>The one offset of a config written before every cast bar had its own.</summary>
+    [JsonProperty("CastBarTextOffset", NullValueHandling = NullValueHandling.Ignore)]
+    private int? sharedCastBarTextOffset;
 
     /// <summary>The language list of a config written before the lists were kept per game language.</summary>
     [JsonProperty("Languages", NullValueHandling = NullValueHandling.Ignore, ObjectCreationHandling = ObjectCreationHandling.Replace)]
@@ -69,10 +73,17 @@ public class Configuration : IPluginConfiguration
 
     public bool DecoratePartyList { get; set; } = true;
 
-    /// <summary>
-    /// Moves the cast bar text up or down without resizing the bar itself.
-    /// </summary>
-    public int CastBarTextOffset { get; set; }
+    /// <summary>Moves your own cast bar's text up or down without resizing the bar itself.</summary>
+    public int PlayerCastBarTextOffset { get; set; }
+
+    /// <summary>Moves the target's cast bar text up or down without resizing the bar itself.</summary>
+    public int TargetCastBarTextOffset { get; set; }
+
+    /// <summary>Moves the text of the cast bars over enemies' heads up or down.</summary>
+    public int OverheadCastBarTextOffset { get; set; }
+
+    /// <summary>Moves the focus target's cast bar text up or down without resizing the bar itself.</summary>
+    public int FocusTargetCastBarTextOffset { get; set; }
 
     /// <summary>
     /// Distance between a tooltip and the panel of translated names beside it.
@@ -102,6 +113,17 @@ public class Configuration : IPluginConfiguration
         var changed = Version != CurrentVersion;
         var promotePrimary = Version < PrimaryFirstVersion;
         Version = CurrentVersion;
+
+        if (sharedCastBarTextOffset is { } inheritedOffset)
+        {
+            // The one offset the old config had applies to every cast bar until they are changed apart.
+            PlayerCastBarTextOffset = inheritedOffset;
+            TargetCastBarTextOffset = inheritedOffset;
+            OverheadCastBarTextOffset = inheritedOffset;
+            FocusTargetCastBarTextOffset = inheritedOffset;
+            sharedCastBarTextOffset = null;
+            changed = true;
+        }
 
         if (sharedLanguages is { } inherited)
         {

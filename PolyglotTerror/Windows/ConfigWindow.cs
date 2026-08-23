@@ -179,13 +179,30 @@ public sealed class ConfigWindow : Window, IDisposable
         if (!Section("Display"))
             return;
 
-        Slider(
-            "Cast bar text offset",
-            configuration.CastBarTextOffset,
-            Configuration.MinCastBarTextOffset,
-            Configuration.MaxCastBarTextOffset,
-            value => configuration.CastBarTextOffset = value,
-            "Moves the cast bar text up or down. The bar itself stays where it is.");
+        // Two of these read the same as the checkboxes above, so they need their own ID scope.
+        ImGui.PushID("offsets");
+
+        ImGui.TextDisabled("Moves each cast bar's text up or down. The bars themselves stay where they are.");
+        ImGui.Spacing();
+
+        OffsetSlider(
+            "Your own cast bar",
+            configuration.PlayerCastBarTextOffset,
+            value => configuration.PlayerCastBarTextOffset = value);
+        OffsetSlider(
+            "Target cast bar",
+            configuration.TargetCastBarTextOffset,
+            value => configuration.TargetCastBarTextOffset = value);
+        OffsetSlider(
+            "Cast bars over enemies",
+            configuration.OverheadCastBarTextOffset,
+            value => configuration.OverheadCastBarTextOffset = value);
+        OffsetSlider(
+            "Focus target cast bar",
+            configuration.FocusTargetCastBarTextOffset,
+            value => configuration.FocusTargetCastBarTextOffset = value);
+
+        ImGui.PopID();
     }
 
     private void Swap(int a, int b)
@@ -205,6 +222,13 @@ public sealed class ConfigWindow : Window, IDisposable
 
         Help(help);
     }
+
+    private void OffsetSlider(string label, int value, Action<int> set) => Slider(
+        label,
+        value,
+        Configuration.MinCastBarTextOffset,
+        Configuration.MaxCastBarTextOffset,
+        set);
 
     private void Slider(string label, int value, int min, int max, Action<int> set, string? help = null)
     {

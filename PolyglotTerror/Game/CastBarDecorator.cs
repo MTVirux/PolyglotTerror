@@ -142,7 +142,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
         var node = ResolveTextNode(addon, surface, clientName);
         if (node != null)
-            Decorate(args.AddonName, node, actionType, actionId, surface.Policy);
+            Decorate(args.AddonName, node, actionType, actionId, surface.Policy, OffsetFor(surface.Source));
     }
 
     private void OnOverheadDraw(AddonEvent type, AddonArgs args)
@@ -168,7 +168,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             if (clientName == null || !HoldsActionName(node, clientName))
                 continue;
 
-            Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.FullStack);
+            Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.FullStack, config.OverheadCastBarTextOffset);
         }
     }
 
@@ -191,7 +191,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
 
             var node = FindTextNode(addon->UldManager, clientName);
             if (node != null)
-                Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.PrimaryOnly);
+                Decorate(args.AddonName, node, actionType, actionId, LanguagePolicy.PrimaryOnly, 0);
         }
     }
 
@@ -227,7 +227,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
         return null;
     }
 
-    private void Decorate(string addonName, AtkTextNode* node, byte actionType, uint actionId, LanguagePolicy policy)
+    private void Decorate(string addonName, AtkTextNode* node, byte actionType, uint actionId, LanguagePolicy policy, int offset)
     {
         var original = Remember(addonName, node);
 
@@ -260,7 +260,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
             FitLines(node, lines);
         }
 
-        OffsetText(node, original.Y, lines);
+        OffsetText(node, original.Y, lines, offset);
     }
 
     /// <summary>
@@ -278,7 +278,7 @@ public sealed unsafe class CastBarDecorator : IDisposable
     /// the configured offset move from the game's own position, so they stay absolute instead of
     /// piling up frame after frame.
     /// </summary>
-    private void OffsetText(AtkTextNode* node, float anchor, int lines)
+    private static void OffsetText(AtkTextNode* node, float anchor, int lines, int offset)
     {
         var lift = lines switch
         {
@@ -289,8 +289,17 @@ public sealed unsafe class CastBarDecorator : IDisposable
             _ => MathF.Floor((lines - 1) * LineLift),
         };
 
-        node->AtkResNode.SetYFloat(anchor + lift + config.CastBarTextOffset);
+        node->AtkResNode.SetYFloat(anchor + lift + offset);
     }
+
+    /// <summary>The offset belonging to the bar a source's cast is drawn in.</summary>
+    private int OffsetFor(CastSource source) => source switch
+    {
+        CastSource.Self => config.PlayerCastBarTextOffset,
+        CastSource.Target => config.TargetCastBarTextOffset,
+        CastSource.FocusTarget => config.FocusTargetCastBarTextOffset,
+        _ => 0,
+    };
 
     /// <summary>
     /// Records how the game had a node the first time we touch it, so we can put it back later.
