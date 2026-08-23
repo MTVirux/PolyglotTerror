@@ -4,6 +4,7 @@ using Dalamud.Game;
 using Dalamud.Game.Gui;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
+using Lumina.Text.ReadOnly;
 using PolyglotTerror.Core;
 using LuminaAction = Lumina.Excel.Sheets.Action;
 
@@ -46,7 +47,7 @@ public sealed class NameCatalog
         if (addonMemo.TryGetValue(key, out var cached))
             return cached;
 
-        var resolved = Row<Addon>(language, addonRowId, static row => row.Text.ExtractText());
+        var resolved = Row<Addon>(language, addonRowId, static row => row.Text);
         addonMemo[key] = resolved;
         return resolved;
     }
@@ -102,59 +103,68 @@ public sealed class NameCatalog
 
     private static string? ResolveCastName(GameLanguage language, CastNameSource source, uint actionId) => source switch
     {
-        CastNameSource.Action => Row<LuminaAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.Item => Row<Item>(language, ItemIdNormalizer.ToBaseItemId(actionId), static row => row.Name.ExtractText()),
-        CastNameSource.EventItem => Row<EventItem>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.EventAction => Row<EventAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.GeneralAction => Row<GeneralAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.BuddyAction => Row<BuddyAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.MainCommand => Row<MainCommand>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.Companion => Row<Companion>(language, actionId, static row => row.Singular.ExtractText()),
-        CastNameSource.CraftAction => Row<CraftAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.PetAction => Row<PetAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.Mount => Row<Mount>(language, actionId, static row => row.Singular.ExtractText()),
-        CastNameSource.ChocoboRaceAbility => Row<ChocoboRaceAbility>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.ChocoboRaceItem => Row<ChocoboRaceItem>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.BgcArmyAction => Row<BgcArmyAction>(language, actionId, static row => row.Name.ExtractText()),
-        CastNameSource.Ornament => Row<Ornament>(language, actionId, static row => row.Singular.ExtractText()),
+        CastNameSource.Action => Row<LuminaAction>(language, actionId, static row => row.Name),
+        CastNameSource.Item => Row<Item>(language, ItemIdNormalizer.ToBaseItemId(actionId), static row => row.Name),
+        CastNameSource.EventItem => Row<EventItem>(language, actionId, static row => row.Name),
+        CastNameSource.EventAction => Row<EventAction>(language, actionId, static row => row.Name),
+        CastNameSource.GeneralAction => Row<GeneralAction>(language, actionId, static row => row.Name),
+        CastNameSource.BuddyAction => Row<BuddyAction>(language, actionId, static row => row.Name),
+        CastNameSource.MainCommand => Row<MainCommand>(language, actionId, static row => row.Name),
+        CastNameSource.Companion => Row<Companion>(language, actionId, static row => row.Singular),
+        CastNameSource.CraftAction => Row<CraftAction>(language, actionId, static row => row.Name),
+        CastNameSource.PetAction => Row<PetAction>(language, actionId, static row => row.Name),
+        CastNameSource.Mount => Row<Mount>(language, actionId, static row => row.Singular),
+        CastNameSource.ChocoboRaceAbility => Row<ChocoboRaceAbility>(language, actionId, static row => row.Name),
+        CastNameSource.ChocoboRaceItem => Row<ChocoboRaceItem>(language, actionId, static row => row.Name),
+        CastNameSource.BgcArmyAction => Row<BgcArmyAction>(language, actionId, static row => row.Name),
+        CastNameSource.Ornament => Row<Ornament>(language, actionId, static row => row.Singular),
         _ => null,
     };
 
     private static ActionNames ResolveActionDetail(GameLanguage language, DetailKind kind, uint actionId) => kind switch
     {
         DetailKind.Action => new ActionNames(
-            Row<LuminaAction>(language, actionId, static row => row.Name.ExtractText()),
-            Row<ActionTransient>(language, actionId, static row => row.Description.ExtractText())),
+            Row<LuminaAction>(language, actionId, static row => row.Name),
+            Row<ActionTransient>(language, actionId, static row => row.Description)),
         DetailKind.Trait => new ActionNames(
-            Row<Trait>(language, actionId, static row => row.Name.ExtractText()),
-            Row<TraitTransient>(language, actionId, static row => row.Description.ExtractText())),
+            Row<Trait>(language, actionId, static row => row.Name),
+            Row<TraitTransient>(language, actionId, static row => row.Description)),
         DetailKind.GeneralAction => new ActionNames(
-            Row<GeneralAction>(language, actionId, static row => row.Name.ExtractText()),
-            Row<GeneralAction>(language, actionId, static row => row.Description.ExtractText())),
+            Row<GeneralAction>(language, actionId, static row => row.Name),
+            Row<GeneralAction>(language, actionId, static row => row.Description)),
         DetailKind.MainCommand => new ActionNames(
-            Row<MainCommand>(language, actionId, static row => row.Name.ExtractText()),
-            Row<MainCommand>(language, actionId, static row => row.Description.ExtractText())),
+            Row<MainCommand>(language, actionId, static row => row.Name),
+            Row<MainCommand>(language, actionId, static row => row.Description)),
         DetailKind.ExtraCommand => new ActionNames(
-            Row<ExtraCommand>(language, actionId, static row => row.Name.ExtractText()),
-            Row<ExtraCommand>(language, actionId, static row => row.Description.ExtractText())),
+            Row<ExtraCommand>(language, actionId, static row => row.Name),
+            Row<ExtraCommand>(language, actionId, static row => row.Description)),
         DetailKind.BuddyAction => new ActionNames(
-            Row<BuddyAction>(language, actionId, static row => row.Name.ExtractText()),
-            Row<BuddyAction>(language, actionId, static row => row.Description.ExtractText())),
+            Row<BuddyAction>(language, actionId, static row => row.Name),
+            Row<BuddyAction>(language, actionId, static row => row.Description)),
         DetailKind.Companion => new ActionNames(
-            Row<Companion>(language, actionId, static row => row.Singular.ExtractText()),
-            Row<CompanionTransient>(language, actionId, static row => row.Description.ExtractText())),
+            Row<Companion>(language, actionId, static row => row.Singular),
+            Row<CompanionTransient>(language, actionId, static row => row.Description)),
         DetailKind.Mount => new ActionNames(
-            Row<Mount>(language, actionId, static row => row.Singular.ExtractText()),
-            Row<MountTransient>(language, actionId, static row => row.Description.ExtractText())),
+            Row<Mount>(language, actionId, static row => row.Singular),
+            Row<MountTransient>(language, actionId, static row => row.Description)),
         DetailKind.Ornament => new ActionNames(
-            Row<Ornament>(language, actionId, static row => row.Singular.ExtractText()),
+            Row<Ornament>(language, actionId, static row => row.Singular),
             null),
         _ => new ActionNames(null, null),
     };
 
-    private static string? Row<T>(GameLanguage language, uint rowId, Func<T, string?> pick)
+    private static string? Row<T>(GameLanguage language, uint rowId, Func<T, ReadOnlySeString> pick)
         where T : struct, IExcelRow<T>
-        => GetSheet<T>(language)?.GetRowOrDefault(rowId) is { } row ? Usable(pick(row)) : null;
+        => GetSheet<T>(language)?.GetRowOrDefault(rowId) is { } row ? Usable(Text(language, pick(row))) : null;
+
+    /// <summary>
+    /// The text the game itself would print. Descriptions keep whole paragraphs behind If macros -
+    /// level and job conditions, mostly - and reading the raw string drops every one of them.
+    /// </summary>
+    private static string? Text(GameLanguage language, ReadOnlySeString text)
+        => ClientLanguages.TryGetValue(language, out var clientLanguage)
+            ? Plugin.SeStringEvaluator.Evaluate(text, default, clientLanguage).ExtractText()
+            : text.ExtractText();
 
     private static ItemNames ResolveItem(GameLanguage language, uint hoveredItemId)
     {
@@ -162,7 +172,7 @@ public sealed class NameCatalog
         {
             var eventSheet = GetSheet<EventItem>(language);
             return eventSheet?.GetRowOrDefault(hoveredItemId) is { } eventRow
-                ? new ItemNames(Usable(eventRow.Name.ExtractText()), null, null)
+                ? new ItemNames(Usable(Text(language, eventRow.Name)), null, null)
                 : new ItemNames(null, null, null);
         }
 
@@ -171,13 +181,13 @@ public sealed class NameCatalog
             return new ItemNames(null, null, null);
 
         var category = row.ItemUICategory.ValueNullable is { } uiCategory
-            ? Usable(uiCategory.Name.ExtractText())
+            ? Usable(Text(language, uiCategory.Name))
             : null;
 
         return new ItemNames(
-            Usable(row.Name.ExtractText()),
+            Usable(Text(language, row.Name)),
             category,
-            Usable(row.Description.ExtractText()));
+            Usable(Text(language, row.Description)));
     }
 
     private static ExcelSheet<T>? GetSheet<T>(GameLanguage language)

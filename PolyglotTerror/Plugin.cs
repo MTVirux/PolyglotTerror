@@ -26,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui Chat { get; private set; } = null!;
     [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static ISeStringEvaluator SeStringEvaluator { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("PolyglotTerror");
     private readonly AddonInspector inspector = new();
@@ -62,6 +63,10 @@ public sealed class Plugin : IDalamudPlugin
 
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += OpenConfig;
+
+        ClientState.Login += Names.Clear;
+        ClientState.ClassJobChanged += OnClassJobChanged;
+        ClientState.LevelChanged += OnLevelChanged;
     }
 
     public Configuration Configuration { get; }
@@ -72,6 +77,9 @@ public sealed class Plugin : IDalamudPlugin
     {
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= OpenConfig;
+        ClientState.Login -= Names.Clear;
+        ClientState.ClassJobChanged -= OnClassJobChanged;
+        ClientState.LevelChanged -= OnLevelChanged;
         CommandManager.RemoveHandler(CommandName);
         windowSystem.RemoveAllWindows();
         configWindow.Dispose();
@@ -79,6 +87,12 @@ public sealed class Plugin : IDalamudPlugin
         actionNames.Dispose();
         itemNames.Dispose();
     }
+
+    // Descriptions are resolved against the player's job and level, so they stop being true the
+    // moment either changes.
+    private void OnClassJobChanged(uint classJobId) => Names.Clear();
+
+    private void OnLevelChanged(uint classJobId, uint level) => Names.Clear();
 
     private void RegisterCastBars()
     {
