@@ -119,6 +119,11 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.PushID("actions");
 
         Option("Name", configuration.ShowActionName, value => configuration.ShowActionName = value);
+        Option(
+            "Category",
+            configuration.ShowActionCategory,
+            value => configuration.ShowActionCategory = value,
+            "Only combat actions have one - ability, weaponskill, spell and the like.");
         Option("Description", configuration.ShowActionDescription, value => configuration.ShowActionDescription = value);
 
         DrawPanelPlacement(

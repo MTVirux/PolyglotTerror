@@ -12,7 +12,7 @@ namespace PolyglotTerror.Game;
 
 public sealed record ItemNames(string? Name, string? Category, string? Description);
 
-public sealed record ActionNames(string? Name, string? Description);
+public sealed record ActionNames(string? Name, string? Category, string? Description);
 
 public sealed class NameCatalog
 {
@@ -123,35 +123,60 @@ public sealed class NameCatalog
 
     private static ActionNames ResolveActionDetail(GameLanguage language, DetailKind kind, uint actionId) => kind switch
     {
-        DetailKind.Action => new ActionNames(
-            Row<LuminaAction>(language, actionId, static row => row.Name),
-            Row<ActionTransient>(language, actionId, static row => row.Description)),
+        DetailKind.Action => ResolveAction(language, actionId),
         DetailKind.Trait => new ActionNames(
             Row<Trait>(language, actionId, static row => row.Name),
+            null,
             Row<TraitTransient>(language, actionId, static row => row.Description)),
         DetailKind.GeneralAction => new ActionNames(
             Row<GeneralAction>(language, actionId, static row => row.Name),
+            null,
             Row<GeneralAction>(language, actionId, static row => row.Description)),
         DetailKind.MainCommand => new ActionNames(
             Row<MainCommand>(language, actionId, static row => row.Name),
+            null,
             Row<MainCommand>(language, actionId, static row => row.Description)),
         DetailKind.ExtraCommand => new ActionNames(
             Row<ExtraCommand>(language, actionId, static row => row.Name),
+            null,
             Row<ExtraCommand>(language, actionId, static row => row.Description)),
         DetailKind.BuddyAction => new ActionNames(
             Row<BuddyAction>(language, actionId, static row => row.Name),
+            null,
             Row<BuddyAction>(language, actionId, static row => row.Description)),
         DetailKind.Companion => new ActionNames(
             Row<Companion>(language, actionId, static row => row.Singular),
+            null,
             Row<CompanionTransient>(language, actionId, static row => row.Description)),
         DetailKind.Mount => new ActionNames(
             Row<Mount>(language, actionId, static row => row.Singular),
+            null,
             Row<MountTransient>(language, actionId, static row => row.Description)),
         DetailKind.Ornament => new ActionNames(
             Row<Ornament>(language, actionId, static row => row.Singular),
+            null,
             null),
-        _ => new ActionNames(null, null),
+        _ => new ActionNames(null, null, null),
     };
+
+    /// <summary>
+    /// Resolves a combat action, whose category - ability, weaponskill, spell - lives on a sheet of
+    /// its own. No other detail sheet carries a category the game gives a name to.
+    /// </summary>
+    private static ActionNames ResolveAction(GameLanguage language, uint actionId)
+    {
+        if (GetSheet<LuminaAction>(language)?.GetRowOrDefault(actionId) is not { } row)
+            return new ActionNames(null, null, null);
+
+        var category = row.ActionCategory.ValueNullable is { } actionCategory
+            ? Usable(Text(language, actionCategory.Name))
+            : null;
+
+        return new ActionNames(
+            Usable(Text(language, row.Name)),
+            category,
+            Row<ActionTransient>(language, actionId, static transient => transient.Description));
+    }
 
     private static string? Row<T>(GameLanguage language, uint rowId, Func<T, ReadOnlySeString> pick)
         where T : struct, IExcelRow<T>

@@ -59,6 +59,8 @@ public class Configuration : IPluginConfiguration
 
     public bool ShowActionName { get; set; } = true;
 
+    public bool ShowActionCategory { get; set; }
+
     public bool ShowActionDescription { get; set; }
 
     public bool DecorateTooltip { get; set; } = true;
