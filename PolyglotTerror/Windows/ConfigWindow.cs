@@ -1,15 +1,11 @@
-using System;
-using System.Numerics;
+﻿using System;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
-using PolyglotTerror.Core;
 
 namespace PolyglotTerror.Windows;
 
 public sealed class ConfigWindow : Window, IDisposable
 {
-    private static readonly Vector4 Amber = new(1f, 0.8f, 0f, 1f);
-
     private readonly Plugin plugin;
     private readonly Configuration configuration;
 
@@ -32,12 +28,6 @@ public sealed class ConfigWindow : Window, IDisposable
         DrawActions();
         DrawSurfaces();
         DrawDisplay();
-
-        if (LineComposer.Primary(configuration.Languages) is null)
-        {
-            ImGui.Spacing();
-            ImGui.TextColored(Amber, "No language is enabled, so nothing will be shown.");
-        }
     }
 
     private void DrawLanguages()
@@ -45,17 +35,32 @@ public sealed class ConfigWindow : Window, IDisposable
         if (!Section("Languages"))
             return;
 
+        var client = configuration.ClientLanguage;
+
+        ImGui.TextDisabled($"Saved separately for each game language. The game is in {client}.");
+        ImGui.SameLine();
+        HelpMarker(
+            "Lines are shown in this order. The first enabled language is the primary one." +
+            "\n\n" +
+            "Every game language keeps its own set, so switching the client to another language " +
+            "brings up the set you picked for that one.");
+        ImGui.Spacing();
+
         var languages = configuration.Languages;
         for (var i = 0; i < languages.Count; i++)
         {
             var entry = languages[i];
+            var locked = entry.Language == client;
 
             var enabled = entry.Enabled;
+            ImGui.BeginDisabled(locked);
             if (ImGui.Checkbox(entry.Language.ToString(), ref enabled))
             {
                 languages[i] = entry with { Enabled = enabled };
                 Apply();
             }
+
+            ImGui.EndDisabled();
 
             ImGui.SameLine();
             ImGui.BeginDisabled(i == 0);
@@ -69,11 +74,14 @@ public sealed class ConfigWindow : Window, IDisposable
                 Swap(i, i + 1);
             ImGui.EndDisabled();
 
-            if (i == 0)
-            {
-                ImGui.SameLine();
-                HelpMarker("Lines are shown in this order. The first enabled language is the primary one.");
-            }
+            if (!locked)
+                continue;
+
+            ImGui.SameLine();
+            HelpMarker(
+                "The game is running in this language, so it is what every other line is a " +
+                "translation of. It stays on, and turns back on by itself whenever you start the " +
+                "game in a different language.");
         }
     }
 

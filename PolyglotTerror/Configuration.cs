@@ -9,7 +9,7 @@ namespace PolyglotTerror;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    private const int CurrentVersion = 2;
+    private const int CurrentVersion = 3;
 
     public const int MinCastBarTextOffset = -40;
 
@@ -23,16 +23,26 @@ public class Configuration : IPluginConfiguration
 
     public const int MaxTooltipPanelOffsetY = 100;
 
+    /// <summary>The language list of a config written before the lists were kept per game language.</summary>
+    [JsonProperty("Languages", NullValueHandling = NullValueHandling.Ignore, ObjectCreationHandling = ObjectCreationHandling.Replace)]
+    private List<LanguageEntry>? sharedLanguages;
+
     public int Version { get; set; } = CurrentVersion;
 
+    /// <summary>
+    /// One language list per game language, because a player who switches the client between
+    /// languages wants a different set of translations in each.
+    /// </summary>
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
-    public List<LanguageEntry> Languages { get; set; } =
-    [
-        new(GameLanguage.English, true),
-        new(GameLanguage.Japanese, true),
-        new(GameLanguage.German, false),
-        new(GameLanguage.French, false),
-    ];
+    public Dictionary<GameLanguage, List<LanguageEntry>> LanguagesByClient { get; set; } = new();
+
+    /// <summary>The language the game is running in, read once when the plugin starts.</summary>
+    [JsonIgnore]
+    public GameLanguage ClientLanguage { get; private set; } = GameLanguage.English;
+
+    /// <summary>The language list belonging to the language the game is running in.</summary>
+    [JsonIgnore]
+    public List<LanguageEntry> Languages => LanguagesByClient[ClientLanguage];
 
     public bool ShowItemName { get; set; } = true;
 
@@ -78,34 +88,79 @@ public class Configuration : IPluginConfiguration
     public int ActionPanelOffsetY { get; set; } = 20;
 
     /// <summary>
-    /// Repairs a config whose language list is missing entries, has duplicates, or
-    /// carries values no longer in the enum, so a stale config cannot silently drop a language.
+    /// Points the config at the language the game is running in and repairs that language's list,
+    /// so a stale config cannot drop a language, carry a duplicate, or leave the game's own
+    /// language switched off.
     /// </summary>
-    public void Migrate()
+    public void Migrate(GameLanguage clientLanguage)
+    {
+        ClientLanguage = clientLanguage;
+
+        var changed = Version != CurrentVersion;
+        Version = CurrentVersion;
+
+        if (sharedLanguages is { } inherited)
+        {
+            // The one list the old config had becomes the starting point for every game language.
+            foreach (var language in Enum.GetValues<GameLanguage>())
+                LanguagesByClient.TryAdd(language, new List<LanguageEntry>(inherited));
+
+            sharedLanguages = null;
+            changed = true;
+        }
+
+        if (!LanguagesByClient.TryGetValue(clientLanguage, out var entries))
+        {
+            entries = Defaults();
+            LanguagesByClient[clientLanguage] = entries;
+            changed = true;
+        }
+
+        if (Repair(entries, clientLanguage))
+            changed = true;
+
+        if (changed)
+            Save();
+    }
+
+    public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
+
+    private static List<LanguageEntry> Defaults() =>
+    [
+        new(GameLanguage.English, true),
+        new(GameLanguage.Japanese, true),
+        new(GameLanguage.German, false),
+        new(GameLanguage.French, false),
+    ];
+
+    /// <summary>
+    /// Rewrites a language list in place so it holds every language exactly once and has the
+    /// game's own language enabled. Returns whether anything actually changed.
+    /// </summary>
+    private static bool Repair(List<LanguageEntry> entries, GameLanguage clientLanguage)
     {
         var repaired = new List<LanguageEntry>();
         var seen = new HashSet<GameLanguage>();
 
-        foreach (var entry in Languages)
+        foreach (var entry in entries)
         {
             if (!Enum.IsDefined(entry.Language) || !seen.Add(entry.Language))
                 continue;
 
-            repaired.Add(entry);
+            repaired.Add(entry.Language == clientLanguage ? entry with { Enabled = true } : entry);
         }
 
         foreach (var language in Enum.GetValues<GameLanguage>())
         {
             if (seen.Add(language))
-                repaired.Add(new LanguageEntry(language, false));
+                repaired.Add(new LanguageEntry(language, language == clientLanguage));
         }
 
-        if (repaired.Count == Languages.Count && repaired.TrueForAll(Languages.Contains))
-            return;
+        if (repaired.Count == entries.Count && repaired.TrueForAll(entries.Contains))
+            return false;
 
-        Languages = repaired;
-        Save();
+        entries.Clear();
+        entries.AddRange(repaired);
+        return true;
     }
-
-    public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 }

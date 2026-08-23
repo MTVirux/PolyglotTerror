@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -39,7 +39,7 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        Configuration.Migrate();
+        Configuration.Migrate(NameCatalog.FromClientLanguage(ClientState.ClientLanguage));
 
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
