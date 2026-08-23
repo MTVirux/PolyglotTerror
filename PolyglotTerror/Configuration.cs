@@ -9,7 +9,10 @@ namespace PolyglotTerror;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    private const int CurrentVersion = 3;
+    private const int CurrentVersion = 4;
+
+    /// <summary>The version that first put each list's own language at the top of it.</summary>
+    private const int PrimaryFirstVersion = 4;
 
     public const int MinCastBarTextOffset = -40;
 
@@ -97,6 +100,7 @@ public class Configuration : IPluginConfiguration
         ClientLanguage = clientLanguage;
 
         var changed = Version != CurrentVersion;
+        var promotePrimary = Version < PrimaryFirstVersion;
         Version = CurrentVersion;
 
         if (sharedLanguages is { } inherited)
@@ -115,6 +119,13 @@ public class Configuration : IPluginConfiguration
             changed = true;
         }
 
+        if (promotePrimary)
+        {
+            // Lists written before this ran carry the order the languages happen to be declared in.
+            foreach (var (language, list) in LanguagesByClient)
+                MoveToFront(list, language);
+        }
+
         if (Repair(entries, clientLanguage))
             changed = true;
 
@@ -124,9 +135,22 @@ public class Configuration : IPluginConfiguration
 
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 
+    /// <summary>Moves a language to the head of a list, where it becomes the primary one.</summary>
+    private static void MoveToFront(List<LanguageEntry> entries, GameLanguage language)
+    {
+        var index = entries.FindIndex(entry => entry.Language == language);
+        if (index <= 0)
+            return;
+
+        var entry = entries[index];
+        entries.RemoveAt(index);
+        entries.Insert(0, entry);
+    }
+
     /// <summary>
     /// Rewrites a language list in place so it holds every language exactly once and has the
-    /// game's own language enabled. Returns whether anything actually changed.
+    /// game's own language enabled, leading the list if it was missing entirely. Returns whether
+    /// anything actually changed.
     /// </summary>
     private static bool Repair(List<LanguageEntry> entries, GameLanguage clientLanguage)
     {
@@ -143,8 +167,13 @@ public class Configuration : IPluginConfiguration
 
         foreach (var language in Enum.GetValues<GameLanguage>())
         {
-            if (seen.Add(language))
-                repaired.Add(new LanguageEntry(language, language == clientLanguage));
+            if (!seen.Add(language))
+                continue;
+
+            if (language == clientLanguage)
+                repaired.Insert(0, new LanguageEntry(language, true));
+            else
+                repaired.Add(new LanguageEntry(language, false));
         }
 
         if (repaired.Count == entries.Count && repaired.TrueForAll(entries.Contains))
