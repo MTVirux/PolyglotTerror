@@ -48,6 +48,12 @@ public sealed class NamePanelWindow : Window
     /// <summary>The width the caller should assume when deciding which side of the tooltip to use.</summary>
     public static float ExpectedWidth => Width;
 
+    /// <summary>
+    /// The height the panel took the last time it drew, or zero before it has ever drawn. The window
+    /// resizes itself around its content, so its height is only knowable after the fact.
+    /// </summary>
+    public float LastHeight { get; private set; }
+
     public void SetSections(IReadOnlyList<NameSection> value) => sections = value;
 
     public override void PreDraw()
@@ -76,6 +82,8 @@ public sealed class NamePanelWindow : Window
                 ImGui.TextWrapped(lines[j].Text);
             }
         }
+
+        LastHeight = ImGui.GetWindowSize().Y;
     }
 
     /// <summary>The small muted label above a line, naming which field it is.</summary>

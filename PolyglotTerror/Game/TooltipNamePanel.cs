@@ -141,23 +141,24 @@ public abstract unsafe class TooltipNamePanel : IDisposable
            || Plugin.KeyState[VirtualKey.RMENU];
 
     /// <summary>
-    /// To the right of the tooltip, flipping to the left when there is no room for it there.
+    /// Beside the tooltip, kept on screen. Action tooltips come off the hotbar at the bottom of the
+    /// screen, and the panel has no scrollbar, so anything hanging past the edge is simply lost.
     /// </summary>
-    private static Vector2 Beside(AtkUnitBase* tooltip, float gap, float offsetY)
+    private Vector2 Beside(AtkUnitBase* tooltip, float gap, float offsetY)
     {
-        var width = NamePanelWindow.ExpectedWidth;
         var tooltipWidth = tooltip->RootNode->Width * tooltip->Scale;
-        var right = tooltip->X + tooltipWidth + gap;
 
         // The game's own back buffer, not ImGui's viewport - this runs on the framework tick,
         // where there is no ImGui context to ask.
-        var screenWidth = Device.Instance()->Width;
-        var top = tooltip->Y + offsetY;
+        var device = Device.Instance();
 
-        if (right + width > screenWidth)
-            return new Vector2(Math.Max(0f, tooltip->X - width - gap), top);
-
-        return new Vector2(right, top);
+        return PanelPlacement.Beside(
+            new Vector2(tooltip->X, tooltip->Y),
+            tooltipWidth,
+            new Vector2(NamePanelWindow.ExpectedWidth, window.LastHeight),
+            gap,
+            offsetY,
+            new Vector2(device->Width, device->Height));
     }
 
     private AtkUnitBase* Tooltip() => (AtkUnitBase*)Plugin.GameGui.GetAddonByName(addonName).Address;
